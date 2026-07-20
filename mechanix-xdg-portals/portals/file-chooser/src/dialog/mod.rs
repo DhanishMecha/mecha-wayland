@@ -1,5 +1,6 @@
 mod dialog;
 mod types;
+pub(crate) mod widgets;
 
 use crate::backend::{FileChooserRequest, FileChooserResponse, RequestHandle};
 use std::cell::{Cell, RefCell};
@@ -50,8 +51,8 @@ where
 
                 let id = wm.spawn_window(
                     WindowSettings {
-                        width: 800,
-                        height: 600,
+                        width: 540,
+                        height: 620,
                         clear_color: window_manager::Color::rgb(0.08, 0.08, 0.1),
                         kind: WindowKind::Xdg {
                             title: "File Picker".to_string(),

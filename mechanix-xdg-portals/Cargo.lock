@@ -3,6 +3,23 @@
 version = 4
 
 [[package]]
+name = "access"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -848,6 +865,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 name = "mechanix-xdg-portals"
 version = "0.1.0"
 dependencies = [
+ "access",
  "app",
  "bluetooth",
  "dbus",

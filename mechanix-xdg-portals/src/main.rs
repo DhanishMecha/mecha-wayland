@@ -1,9 +1,10 @@
-use app::RegisteredModule;
+use access::{access_module, AccessBackend};
 use app::prelude::*;
-use bluetooth::{BluetoothBackend, bluetooth_module};
-use dbus::{DbusConnection, SessionBus, SystemBus, module as dbus_module};
-use file_chooser::{FileChooserBackend, filechooser_module};
-use portal_core::{DbusMonitor, dbus_monitor_module};
+use app::RegisteredModule;
+use bluetooth::{bluetooth_module, BluetoothBackend};
+use dbus::{module as dbus_module, DbusConnection, SessionBus, SystemBus};
+use file_chooser::{filechooser_module, FileChooserBackend};
+use portal_core::{dbus_monitor_module, portal_host_module, DbusMonitor, PortalHost};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -16,8 +17,10 @@ pub struct AppRoot {
     system_monitor: DbusMonitor<SystemBus>,
     session_monitor: DbusMonitor<SessionBus>,
     window_manager: WindowManager,
+    portal_host: PortalHost,
     backend: FileChooserBackend,
     bt_backend: BluetoothBackend,
+    access_backend: AccessBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -34,7 +37,16 @@ fn main() {
     let system_monitor = DbusMonitor::new(dbus_system.proxy());
     let session_monitor = DbusMonitor::new(dbus_session.proxy());
     let window_manager = WindowManager::new(ring.proxy());
-    let backend = FileChooserBackend::new(dbus_session.proxy());
+    // One shared proxy for all session-bus portals — one name registration
+    let session_proxy = dbus_session.proxy();
+    let combined_xml = format!(
+        "{}{}",
+        file_chooser::backend::FileChooser::introspect(),
+        access::backend::Access::introspect()
+    );
+    let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
+    let backend = FileChooserBackend::new(session_proxy.clone());
+    let access_backend = AccessBackend::new(session_proxy);
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
 
     let app_root = AppRoot {
@@ -44,8 +56,10 @@ fn main() {
         system_monitor,
         session_monitor,
         window_manager,
+        portal_host,
         backend,
         bt_backend,
+        access_backend,
     };
 
     let mut app = App::new(app_root)
@@ -56,8 +70,10 @@ fn main() {
         .mount(dbus_monitor_module::<SystemBus, _>())
         .mount(dbus_monitor_module::<SessionBus, _>())
         .mount(window_manager::module())
+        .mount(portal_host_module())
         .mount(filechooser_module())
-        .mount(bluetooth_module());
+        .mount(bluetooth_module())
+        .mount(access_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);

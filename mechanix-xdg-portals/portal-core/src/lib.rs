@@ -25,7 +25,10 @@ dbus_handler!(pub RequestClose {
 // --- Shared Connection Monitor -----------------------------------------------
 
 pub mod dbus_monitor;
-pub use dbus_monitor::{DbusMonitor, dbus_monitor_module};
+pub use dbus_monitor::{dbus_monitor_module, DbusMonitor};
+
+pub mod portal_host;
+pub use portal_host::{portal_host_module, PortalHost};
 
 // --- Shared UI modules -------------------------------------------------------
 

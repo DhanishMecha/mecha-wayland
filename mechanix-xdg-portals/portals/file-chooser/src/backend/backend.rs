@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use app::{prelude::*, RegisteredModule};
-use dbus::{fdo, variant, DbusEvent, DbusMessage, DbusProxy, IncomingCall, Pending, SessionBus};
+use dbus::{fdo, variant, DbusEvent, DbusMessage, DbusProxy, IncomingCall, SessionBus};
 use zbus::message::Message;
 
 use super::interface::{
@@ -11,33 +11,21 @@ use super::interface::{
 use super::types::{
     FileChooserOutcome, FileChooserRequest, FileChooserResponse, FileChooserResults, RequestHandle,
 };
-use portal_core::{RequestClose, PORTAL_NAME, PORTAL_PATH, RESPONSE_CANCELLED, RESPONSE_SUCCESS};
+use portal_core::{RequestClose, PORTAL_PATH, RESPONSE_CANCELLED, RESPONSE_SUCCESS};
 
 // --- Backend state -----------------------------------------------------------
 #[derive(State)]
 pub struct FileChooserBackend {
     proxy: DbusProxy<SessionBus>,
-    request_name: Pending<fdo::RequestName>,
     pending: HashMap<RequestHandle, Rc<Message>>,
-    owned: bool,
 }
 
 impl FileChooserBackend {
     pub fn new(proxy: DbusProxy<SessionBus>) -> Self {
         Self {
             proxy,
-            request_name: Pending::new(),
             pending: HashMap::new(),
-            owned: false,
         }
-    }
-
-    fn bootstrap(&mut self) {
-        self.request_name.call(
-            &self.proxy,
-            &(PORTAL_NAME.to_string(), fdo::NAME_DO_NOT_QUEUE),
-            (),
-        );
     }
 
     fn finish_dialog(&mut self, handle: &str, outcome: FileChooserOutcome) {
@@ -69,7 +57,6 @@ impl FileChooserBackend {
 // --- Module registration -----------------------------------------------------
 pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
     Module::<FileChooserBackend, _, _>::new()
-        .on(|s: &mut FileChooserBackend, _: &app::Start| s.bootstrap())
         .on(|s: &mut FileChooserBackend, done: &FileChooserResponse| {
             s.finish_dialog(&done.handle, done.outcome.clone());
         })
@@ -78,37 +65,11 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
              ev: &DbusEvent<SessionBus>|
              -> Option<FileChooserRequest> {
                 match &ev.msg {
-                    DbusMessage::Reconnected => {
-                        println!(
-                            "FileChooser backend reconnected. Re-bootstrapping name ownership..."
-                        );
-                        s.bootstrap();
-                        return None;
-                    }
                     DbusMessage::Disconnected => {
                         s.pending.clear();
-                        s.request_name.clear();
-                        s.owned = false;
-                        println!("FileChooser backend disconnected from D-Bus.");
                         return None;
                     }
                     _ => {}
-                }
-
-                // RequestName reply.
-                if let Some((_, res)) = s.request_name.resolve(&ev.msg) {
-                    match res {
-                        Ok(code)
-                            if code == fdo::REQUEST_NAME_PRIMARY_OWNER
-                                || code == fdo::REQUEST_NAME_ALREADY_OWNER =>
-                        {
-                            s.owned = true;
-                            println!("FileChooser backend serving {PORTAL_NAME}");
-                        }
-                        Ok(code) => eprintln!("could not own {PORTAL_NAME} (code {code})"),
-                        Err(e) => eprintln!("RequestName failed: {e}"),
-                    }
-                    return None;
                 }
 
                 // OpenFile / SaveFile / SaveFiles -> open the dialog.
@@ -139,13 +100,14 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
 
                 // Request.Close -> cancel.
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
-                    call.respond(&s.proxy, &());
                     if let Some(handle) = &call.path {
-                        let handle = handle.clone();
-                        s.finish_dialog(&handle, FileChooserOutcome::Cancelled);
-                        return Some(FileChooserRequest::Close { handle });
+                        if s.pending.contains_key(handle) {
+                            call.respond(&s.proxy, &());
+                            let handle = handle.clone();
+                            s.finish_dialog(&handle, FileChooserOutcome::Cancelled);
+                            return Some(FileChooserRequest::Close { handle });
+                        }
                     }
-                    return None;
                 }
 
                 // Properties: read-only `version`.
@@ -165,14 +127,13 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
                     return None;
                 }
 
-                // Standard interfaces (Peer.Ping / GetMachineId, Introspect).
-                if FileChooser::handle_standard(&s.proxy, PORTAL_PATH, &ev.msg) {
-                    return None;
-                }
-
-                // Fallback: unknown method on our portal object.
+                // Fallback: unknown method on our interface only.
                 if let DbusMessage::Call(m) = &ev.msg {
-                    if m.header().path().is_some_and(|p| p.as_str() == PORTAL_PATH) {
+                    if m.header().path().is_some_and(|p| p.as_str() == PORTAL_PATH)
+                        && m.header()
+                            .interface()
+                            .is_some_and(|i| i.as_str() == FILECHOOSER_IFACE)
+                    {
                         s.proxy.reply_unknown_method(m);
                     }
                 }
