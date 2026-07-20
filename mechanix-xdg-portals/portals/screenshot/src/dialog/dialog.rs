@@ -1,4 +1,4 @@
-use crate::backend::{AccessOutcome, AccessResponse, RequestHandle};
+use crate::backend::{RequestHandle, ScreenshotOutcome, ScreenshotResponse};
 use assets::BakedFont;
 use interactivity::InteractivityState;
 use taffy::prelude::*;
@@ -16,26 +16,24 @@ pub type ButtonRowDiv = Div<(Button, Button)>;
 pub type ModalDiv = Div<(HeaderDiv, Text, ButtonRowDiv)>;
 pub type RootDiv = Div<(ModalDiv,)>;
 
-pub struct AccessDialogUi {
+pub struct ScreenshotDialogUi {
     handle: RequestHandle,
     root: RootDiv,
-    deny_rect: utils::Rect,
-    allow_rect: utils::Rect,
-    deny_id: Option<u64>,
-    allow_id: Option<u64>,
+    cancel_rect: utils::Rect,
+    confirm_rect: utils::Rect,
+    cancel_id: Option<u64>,
+    confirm_id: Option<u64>,
 }
 
-impl AccessDialogUi {
+impl ScreenshotDialogUi {
     pub fn new(
         handle: RequestHandle,
         app_id: String,
         title: String,
-        subtitle: String,
         body: String,
-        icon: Option<String>,
-        deny_label: Option<String>,
-        grant_label: Option<String>,
-        choices: Option<Vec<(String, String, Vec<(String, String)>, String)>>,
+        icon: &str,
+        cancel_label: &str,
+        confirm_label: &str,
     ) -> Self {
         let font_24 = &atlas::UI_FONT_INTER_24;
         let font_16 = &atlas::UI_FONT_INTER_16;
@@ -45,43 +43,41 @@ impl AccessDialogUi {
             font_16,
             &app_id,
             &title,
-            &subtitle,
             &body,
-            &icon,
-            deny_label.as_deref(),
-            grant_label.as_deref(),
-            &choices,
+            icon,
+            cancel_label,
+            confirm_label,
         );
 
         Self {
             handle,
             root,
-            deny_rect: utils::Rect::ZERO,
-            allow_rect: utils::Rect::ZERO,
-            deny_id: None,
-            allow_id: None,
+            cancel_rect: utils::Rect::ZERO,
+            confirm_rect: utils::Rect::ZERO,
+            cancel_id: None,
+            confirm_id: None,
         }
     }
 }
 
-impl WidgetList for AccessDialogUi {
+impl WidgetList for ScreenshotDialogUi {
     fn build_children(&mut self, tree: &mut WidgetTree) -> Vec<taffy::NodeId> {
         let child_ids = vec![self.root.build_tree(tree)];
-        self.deny_id = Some(self.root.children.0.children.2.children.0.node_id().into());
-        self.allow_id = Some(self.root.children.0.children.2.children.1.node_id().into());
+        self.cancel_id = Some(self.root.children.0.children.2.children.0.node_id().into());
+        self.confirm_id = Some(self.root.children.0.children.2.children.1.node_id().into());
         child_ids
     }
 
     fn render_children(&mut self, tree: &WidgetTree, parent_abs: Point) -> Vec<RenderCommand> {
         let commands = self.root.render_children(tree, parent_abs);
-        let deny_id = self.deny_id.unwrap_or(0);
-        let allow_id = self.allow_id.unwrap_or(0);
+        let cancel_id = self.cancel_id.unwrap_or(0);
+        let confirm_id = self.confirm_id.unwrap_or(0);
         for cmd in &commands {
             if let RenderCommand::RegisterHitArea { id, rect } = cmd {
-                if *id == deny_id {
-                    self.deny_rect = *rect;
-                } else if *id == allow_id {
-                    self.allow_rect = *rect;
+                if *id == cancel_id {
+                    self.cancel_rect = *rect;
+                } else if *id == confirm_id {
+                    self.confirm_rect = *rect;
                 }
             }
         }
@@ -89,20 +85,20 @@ impl WidgetList for AccessDialogUi {
     }
 
     fn on_event(&mut self, interactivity: &InteractivityState, _tree: &mut WidgetTree) -> bool {
-        if self.allow_rect != utils::Rect::ZERO && interactivity.is_clicked(self.allow_rect) {
-            println!("[access-ui] Allow clicked.");
-            PENDING_DIALOG.set(Some(AccessResponse {
+        if self.confirm_rect != utils::Rect::ZERO && interactivity.is_clicked(self.confirm_rect) {
+            println!("[screenshot-ui] Confirmed for handle={}", self.handle);
+            PENDING_DIALOG.set(Some(ScreenshotResponse {
                 handle: self.handle.clone(),
-                outcome: AccessOutcome::Granted,
+                outcome: ScreenshotOutcome::Granted,
             }));
             return true;
         }
 
-        if self.deny_rect != utils::Rect::ZERO && interactivity.is_clicked(self.deny_rect) {
-            println!("[access-ui] Deny clicked.");
-            PENDING_DIALOG.set(Some(AccessResponse {
+        if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
+            println!("[screenshot-ui] Cancelled for handle={}", self.handle);
+            PENDING_DIALOG.set(Some(ScreenshotResponse {
                 handle: self.handle.clone(),
-                outcome: AccessOutcome::Denied,
+                outcome: ScreenshotOutcome::Denied,
             }));
             return true;
         }
@@ -116,25 +112,25 @@ impl WidgetList for AccessDialogUi {
 }
 
 // --- Layout helpers ----------------------------------------------------------
+
 fn make_root(
     font_24: &'static BakedFont,
     font_16: &'static BakedFont,
     app_id: &str,
     title: &str,
-    subtitle: &str,
     body: &str,
-    _icon: &Option<String>, // TODO: Load icon dynamically from options.icon instead of hardcoded fallback
-    deny_label: Option<&str>,
-    grant_label: Option<&str>,
-    _choices: &Option<Vec<(String, String, Vec<(String, String)>, String)>>, // TODO: Requires custom checkbox/radio UI widgets
+    icon: &str,
+    cancel_label: &str,
+    confirm_label: &str,
 ) -> RootDiv {
-    // Header section: icon placeholder + title + subtitle
+    // Icon
     let mut icon_text = Text::new(Style::default());
     icon_text.font = Some(font_24);
-    icon_text.text = "🔒".to_string();
+    icon_text.text = icon.to_string();
     icon_text.color = Color::rgb(0.55, 0.75, 1.0);
     icon_text.z = 0.95;
 
+    // Title
     let mut title_text = Text::new(Style {
         margin: taffy::Rect {
             left: length(0.0_f32),
@@ -149,19 +145,16 @@ fn make_root(
     title_text.color = Color::WHITE;
     title_text.z = 0.95;
 
-    let display_subtitle = if !app_id.is_empty() {
-        if subtitle.is_empty() {
-            format!("Requested by {app_id}")
-        } else {
-            format!("{subtitle} • {app_id}")
-        }
+    // Subtitle — show requesting app id
+    let subtitle_str = if app_id.is_empty() {
+        "An application wants access to your screen.".to_string()
     } else {
-        subtitle.to_string()
+        format!("Requested by {app_id}")
     };
 
     let mut subtitle_text = Text::new(Style::default());
     subtitle_text.font = Some(font_16);
-    subtitle_text.text = display_subtitle;
+    subtitle_text.text = subtitle_str;
     subtitle_text.color = Color::rgb(0.65, 0.65, 0.75);
     subtitle_text.z = 0.95;
 
@@ -199,29 +192,27 @@ fn make_root(
     body_text.color = Color::rgb(0.75, 0.75, 0.82);
     body_text.z = 0.95;
 
-    // Deny / Allow buttons
-    let deny_str = deny_label.unwrap_or("Deny");
-    let grant_str = grant_label.unwrap_or("Allow");
+    // Cancel button (left, neutral)
+    let mut cancel_btn = Button::new(cancel_label);
+    cancel_btn.div.color = Color::rgb(0.12, 0.12, 0.15);
+    cancel_btn.div.border_radius = 10.0;
+    cancel_btn.div.border_color = Color::rgb(0.22, 0.22, 0.27);
+    cancel_btn.div.border_thickness = 1.5;
+    cancel_btn.div.z = 1.0;
+    cancel_btn.div.children.font = Some(font_16);
+    cancel_btn.div.children.color = Color::rgb(0.85, 0.85, 0.9);
+    cancel_btn.div.children.z = 0.5;
 
-    let mut deny_btn = Button::new(deny_str);
-    deny_btn.div.color = Color::rgb(0.12, 0.12, 0.15);
-    deny_btn.div.border_radius = 10.0;
-    deny_btn.div.border_color = Color::rgb(0.22, 0.22, 0.27);
-    deny_btn.div.border_thickness = 1.5;
-    deny_btn.div.z = 1.0;
-    deny_btn.div.children.font = Some(font_16);
-    deny_btn.div.children.color = Color::rgb(0.85, 0.85, 0.9);
-    deny_btn.div.children.z = 0.5;
-
-    let mut allow_btn = Button::new(grant_str);
-    allow_btn.div.color = Color::rgb(0.1, 0.45, 0.9);
-    allow_btn.div.border_radius = 10.0;
-    allow_btn.div.border_color = Color::rgb(0.15, 0.55, 1.0);
-    allow_btn.div.border_thickness = 1.5;
-    allow_btn.div.z = 1.0;
-    allow_btn.div.children.font = Some(font_16);
-    allow_btn.div.children.color = Color::WHITE;
-    allow_btn.div.children.z = 0.5;
+    // Confirm button (right, accent)
+    let mut confirm_btn = Button::new(confirm_label);
+    confirm_btn.div.color = Color::rgb(0.1, 0.45, 0.9);
+    confirm_btn.div.border_radius = 10.0;
+    confirm_btn.div.border_color = Color::rgb(0.15, 0.55, 1.0);
+    confirm_btn.div.border_thickness = 1.5;
+    confirm_btn.div.z = 1.0;
+    confirm_btn.div.children.font = Some(font_16);
+    confirm_btn.div.children.color = Color::WHITE;
+    confirm_btn.div.children.z = 0.5;
 
     let button_row_style = Style {
         display: Display::Flex,
@@ -234,7 +225,7 @@ fn make_root(
         },
         ..Default::default()
     };
-    let button_row = Div::new(button_row_style, (deny_btn, allow_btn));
+    let button_row = Div::new(button_row_style, (cancel_btn, confirm_btn));
 
     // Modal card
     let modal_style = Style {

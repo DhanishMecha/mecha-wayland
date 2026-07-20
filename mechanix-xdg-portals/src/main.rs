@@ -5,6 +5,7 @@ use bluetooth::{bluetooth_module, BluetoothBackend};
 use dbus::{module as dbus_module, DbusConnection, SessionBus, SystemBus};
 use file_chooser::{filechooser_module, FileChooserBackend};
 use portal_core::{dbus_monitor_module, portal_host_module, DbusMonitor, PortalHost};
+use screenshot::{screenshot_module, ScreenshotBackend};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -21,6 +22,7 @@ pub struct AppRoot {
     backend: FileChooserBackend,
     bt_backend: BluetoothBackend,
     access_backend: AccessBackend,
+    screenshot_backend: ScreenshotBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -40,13 +42,15 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}",
+        "{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
-        access::backend::Access::introspect()
+        access::backend::Access::introspect(),
+        screenshot::backend::ScreenshotIface::introspect()
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
-    let access_backend = AccessBackend::new(session_proxy);
+    let access_backend = AccessBackend::new(session_proxy.clone());
+    let screenshot_backend = ScreenshotBackend::new(session_proxy.clone());
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
 
     let app_root = AppRoot {
@@ -60,6 +64,7 @@ fn main() {
         backend,
         bt_backend,
         access_backend,
+        screenshot_backend,
     };
 
     let mut app = App::new(app_root)
@@ -73,7 +78,8 @@ fn main() {
         .mount(portal_host_module())
         .mount(filechooser_module())
         .mount(bluetooth_module())
-        .mount(access_module());
+        .mount(access_module())
+        .mount(screenshot_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);

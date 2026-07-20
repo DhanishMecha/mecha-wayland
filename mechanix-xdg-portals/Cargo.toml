@@ -5,6 +5,7 @@ members = [
     "portals/bluetooth",
     "portals/file-chooser",
     "portals/access",
+    "portals/screenshot",
 ]
 
 [workspace.dependencies]
@@ -34,3 +35,4 @@ portal-core = { path = "portal-core" }
 bluetooth = { path = "portals/bluetooth" }
 file-chooser = { path = "portals/file-chooser" }
 access = { path = "portals/access" }
+screenshot = { path = "portals/screenshot" }
