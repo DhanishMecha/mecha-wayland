@@ -2,8 +2,8 @@ use assets::BakedFont;
 use interactivity::InteractivityState;
 use std::path::PathBuf;
 use taffy::prelude::*;
-use ui::widgets::{Div, Text};
-use ui::{Point, Render, RenderCommand, Widget, WidgetTree};
+use ui::widgets::{ Div, Text };
+use ui::{ Point, Render, RenderCommand, Widget, WidgetTree };
 use utils::Color;
 
 #[derive(Clone)]
@@ -88,12 +88,7 @@ impl FileRow {
         }
     }
 
-    pub fn update(
-        &mut self,
-        tree: &mut WidgetTree,
-        entry: Option<FileEntry>,
-        is_selected: bool,
-    ) {
+    pub fn update(&mut self, tree: &mut WidgetTree, entry: Option<FileEntry>, is_selected: bool) {
         self.is_selected = is_selected;
 
         let mut style = self.style.clone();

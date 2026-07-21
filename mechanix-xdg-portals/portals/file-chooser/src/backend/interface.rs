@@ -1,7 +1,7 @@
 use dbus::dbus_interface;
 use zbus::zvariant::OwnedObjectPath;
 
-use super::types::{FileChooserResults, OpenFileOptions, SaveFileOptions, SaveFilesOptions};
+use super::types::{ FileChooserResults, OpenFileOptions, SaveFileOptions, SaveFilesOptions };
 
 pub const FILECHOOSER_IFACE: &str = "org.freedesktop.impl.portal.FileChooser";
 pub const FILECHOOSER_VERSION: u32 = 3;

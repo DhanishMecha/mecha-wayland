@@ -2,7 +2,7 @@ use assets::BakedFont;
 use portal_core::widgets::Button;
 use taffy::prelude::*;
 use ui::widgets::Div;
-use ui::{Point, Render, RenderCommand};
+use ui::{ Point, Render, RenderCommand };
 use utils::Color;
 
 #[ui::widget]

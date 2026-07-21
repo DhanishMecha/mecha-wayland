@@ -1,4 +1,4 @@
-use crate::backend::{OpenFileOptions, SaveFileOptions, SaveFilesOptions};
+use crate::backend::{ OpenFileOptions, SaveFileOptions, SaveFilesOptions };
 
 #[derive(Debug, Clone)]
 pub enum ChooserOptions {

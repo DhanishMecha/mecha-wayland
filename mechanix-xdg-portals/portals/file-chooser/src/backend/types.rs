@@ -1,5 +1,5 @@
 use app::Event;
-use zbus::zvariant::{DeserializeDict, SerializeDict, Type};
+use zbus::zvariant::{ DeserializeDict, SerializeDict, Type };
 
 pub type RequestHandle = String;
 pub type FilterRule = (u32, String);

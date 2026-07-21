@@ -1,17 +1,19 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use app::{prelude::*, RegisteredModule};
-use dbus::{fdo, variant, DbusEvent, DbusMessage, DbusProxy, IncomingCall, SessionBus};
+use app::{ prelude::*, RegisteredModule };
+use dbus::{ fdo, variant, DbusEvent, DbusMessage, DbusProxy, IncomingCall, SessionBus };
 use zbus::message::Message;
 
-use super::interface::{
-    FileChooser, OpenFile, SaveFile, SaveFiles, FILECHOOSER_IFACE, FILECHOOSER_VERSION,
-};
+use super::interface::{ OpenFile, SaveFile, SaveFiles, FILECHOOSER_IFACE, FILECHOOSER_VERSION };
 use super::types::{
-    FileChooserOutcome, FileChooserRequest, FileChooserResponse, FileChooserResults, RequestHandle,
+    FileChooserOutcome,
+    FileChooserRequest,
+    FileChooserResponse,
+    FileChooserResults,
+    RequestHandle,
 };
-use portal_core::{RequestClose, PORTAL_PATH, RESPONSE_CANCELLED, RESPONSE_SUCCESS};
+use portal_core::{ RequestClose, PORTAL_PATH, RESPONSE_CANCELLED, RESPONSE_SUCCESS };
 
 // --- Backend state -----------------------------------------------------------
 #[derive(State)]
@@ -46,7 +48,7 @@ impl FileChooserBackend {
     fn stash_pending(
         &mut self,
         handle: &zbus::zvariant::OwnedObjectPath,
-        raw: &Rc<Message>,
+        raw: &Rc<Message>
     ) -> RequestHandle {
         let handle_str = handle.as_str().to_string();
         self.pending.insert(handle_str.clone(), Rc::clone(raw));
@@ -56,14 +58,13 @@ impl FileChooserBackend {
 
 // --- Module registration -----------------------------------------------------
 pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
-    Module::<FileChooserBackend, _, _>::new()
+    Module::<FileChooserBackend, _, _>
+        ::new()
         .on(|s: &mut FileChooserBackend, done: &FileChooserResponse| {
             s.finish_dialog(&done.handle, done.outcome.clone());
         })
         .on(
-            |s: &mut FileChooserBackend,
-             ev: &DbusEvent<SessionBus>|
-             -> Option<FileChooserRequest> {
+            |s: &mut FileChooserBackend, ev: &DbusEvent<SessionBus>| -> Option<FileChooserRequest> {
                 match &ev.msg {
                     DbusMessage::Disconnected => {
                         s.pending.clear();
@@ -111,26 +112,35 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
                 }
 
                 // Properties: read-only `version`.
-                if fdo::route_properties(
-                    &s.proxy,
-                    &ev.msg,
-                    FILECHOOSER_IFACE,
-                    &["version"],
-                    |access| match access {
-                        fdo::PropAccess::Get("version") => {
-                            fdo::PropReply::Value(variant(FILECHOOSER_VERSION))
+                if
+                    fdo::route_properties(
+                        &s.proxy,
+                        &ev.msg,
+                        FILECHOOSER_IFACE,
+                        &["version"],
+                        |access| {
+                            match access {
+                                fdo::PropAccess::Get("version") => {
+                                    fdo::PropReply::Value(variant(FILECHOOSER_VERSION))
+                                }
+                                fdo::PropAccess::Set("version", _) => fdo::PropReply::ReadOnly,
+                                _ => fdo::PropReply::Unknown,
+                            }
                         }
-                        fdo::PropAccess::Set("version", _) => fdo::PropReply::ReadOnly,
-                        _ => fdo::PropReply::Unknown,
-                    },
-                ) {
+                    )
+                {
                     return None;
                 }
 
                 // Fallback: unknown method on our interface only.
                 if let DbusMessage::Call(m) = &ev.msg {
-                    if m.header().path().is_some_and(|p| p.as_str() == PORTAL_PATH)
-                        && m.header()
+                    if
+                        m
+                            .header()
+                            .path()
+                            .is_some_and(|p| p.as_str() == PORTAL_PATH) &&
+                        m
+                            .header()
                             .interface()
                             .is_some_and(|i| i.as_str() == FILECHOOSER_IFACE)
                     {
@@ -138,6 +148,6 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
                     }
                 }
                 None
-            },
+            }
         )
 }
