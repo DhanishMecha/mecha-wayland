@@ -872,6 +872,7 @@ dependencies = [
  "file-chooser",
  "io-ring",
  "portal-core",
+ "screencast",
  "screenshot",
  "window-manager",
 ]
@@ -1160,6 +1161,23 @@ dependencies = [
  "unicode-ccc",
  "unicode-properties",
  "unicode-script",
+]
+
+[[package]]
+name = "screencast"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
 ]
 
 [[package]]

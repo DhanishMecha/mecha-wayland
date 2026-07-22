@@ -76,7 +76,7 @@ pub fn screenshot_backend_module<S>() -> impl RegisteredModule<ScreenshotBackend
         })
         .on(
             |s: &mut ScreenshotBackend, ev: &DbusEvent<SessionBus>| -> Option<ScreenshotRequest> {
-                // --- Screenshot() -------------------------------------------
+                // Screenshot()
                 match IncomingCall::<Screenshot>::try_from(&ev.msg) {
                     Some(Ok(call)) => {
                         let (handle, app_id, _parent, options) = &call.args;
@@ -99,7 +99,7 @@ pub fn screenshot_backend_module<S>() -> impl RegisteredModule<ScreenshotBackend
                     None => {}
                 }
 
-                // --- PickColor() --------------------------------------------
+                // PickColor()
                 match IncomingCall::<PickColor>::try_from(&ev.msg) {
                     Some(Ok(call)) => {
                         let (handle, app_id, _parent, _options) = &call.args;
@@ -115,7 +115,7 @@ pub fn screenshot_backend_module<S>() -> impl RegisteredModule<ScreenshotBackend
                     None => {}
                 }
 
-                // --- Request.Close() ----------------------------------------
+                // Request.Close()
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
                     if let Some(handle) = &call.path {
                         if s.pending.contains_key(handle) {
@@ -128,7 +128,7 @@ pub fn screenshot_backend_module<S>() -> impl RegisteredModule<ScreenshotBackend
                     return None;
                 }
 
-                // --- Properties: version ------------------------------------
+                // Properties: version 
                 if fdo::route_properties(
                     &s.proxy,
                     &ev.msg,
@@ -150,7 +150,7 @@ pub fn screenshot_backend_module<S>() -> impl RegisteredModule<ScreenshotBackend
                     return None;
                 }
 
-                // --- Fallback: unknown method on our interface ---------------
+                // Fallback: unknown method on our interface
                 if let DbusMessage::Call(m) = &ev.msg {
                     if m.header().path().is_some_and(|p| p.as_str() == PORTAL_PATH)
                         && m.header()
