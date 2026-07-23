@@ -1913,6 +1913,7 @@ dependencies = [
 name = "ui"
 version = "0.1.0"
 dependencies = [
+ "app",
  "assets",
  "interactivity",
  "taffy",

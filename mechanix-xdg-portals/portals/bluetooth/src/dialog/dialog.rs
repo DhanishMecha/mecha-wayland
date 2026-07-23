@@ -1,12 +1,10 @@
 use crate::backend::{BluetoothOutcome, BluetoothResponse};
 use assets::BakedFont;
-use interactivity::InteractivityState;
 use taffy::prelude::*;
 use ui::widgets::{Div, Text};
-use ui::{Point, RenderCommand, Widget, WidgetList, WidgetTree};
+use ui::{EventCtx, Point, RenderCommand, Widget, WidgetList, WidgetTree};
 use utils::Color;
 
-use super::PENDING_BT_RESPONSE;
 use super::types::DialogKind;
 use portal_core::atlas;
 use portal_core::widgets::Button;
@@ -107,8 +105,8 @@ impl BluetoothDialogUi {
                 (p, 0u64)
             }
             Layout::Confirm(r) => {
-                let p: u64 = r.children.0.children.2.children.0.node_id().into();
-                let s: u64 = r.children.0.children.2.children.1.node_id().into();
+                let s: u64 = r.children.0.children.2.children.0.node_id().into();
+                let p: u64 = r.children.0.children.2.children.1.node_id().into();
                 (p, s)
             }
         };
@@ -142,28 +140,23 @@ impl WidgetList for BluetoothDialogUi {
         commands
     }
 
-    fn on_event(&mut self, interactivity: &InteractivityState, _tree: &mut WidgetTree) -> bool {
+    fn on_event(&mut self, ctx: &mut EventCtx) {
         // Primary button: Dismiss (display) or Confirm/Allow (request)
-        if self.primary_rect != utils::Rect::ZERO && interactivity.is_clicked(self.primary_rect) {
+        if self.primary_rect != utils::Rect::ZERO && ctx.interactivity().is_clicked(self.primary_rect) {
             let outcome = if self.is_display {
                 BluetoothOutcome::Dismissed
             } else {
                 BluetoothOutcome::Accepted
             };
-            PENDING_BT_RESPONSE.set(Some(BluetoothResponse { outcome }));
-            return true;
-        }
-        // Secondary button: Reject (confirm dialogs only)
-        if !self.is_display
+            ctx.dispatch(BluetoothResponse { outcome });
+        } else if !self.is_display
             && self.secondary_rect != utils::Rect::ZERO
-            && interactivity.is_clicked(self.secondary_rect)
+            && ctx.interactivity().is_clicked(self.secondary_rect)
         {
-            PENDING_BT_RESPONSE.set(Some(BluetoothResponse {
+            ctx.dispatch(BluetoothResponse {
                 outcome: BluetoothOutcome::Rejected,
-            }));
-            return true;
+            });
         }
-        false
     }
 
     fn wants_input(&self) -> bool {
@@ -312,14 +305,14 @@ fn modal_style() -> Style {
         justify_content: Some(JustifyContent::SpaceBetween),
         align_items: Some(AlignItems::Center),
         size: Size {
-            width: length(480.0_f32),
-            height: length(280.0_f32),
+            width: percent(1.0_f32),
+            height: percent(1.0_f32),
         },
         padding: taffy::Rect {
-            left: length(40.0_f32),
-            right: length(40.0_f32),
-            top: length(36.0_f32),
-            bottom: length(36.0_f32),
+            left: length(24.0_f32),
+            right: length(24.0_f32),
+            top: length(32.0_f32),
+            bottom: length(24.0_f32),
         },
         ..Default::default()
     }
@@ -341,10 +334,10 @@ fn root_style() -> Style {
 
 fn style_modal<T: WidgetList>(children: T) -> Div<T> {
     let mut m = Div::new(modal_style(), children);
-    m.color = Color::rgb(0.10, 0.10, 0.13);
-    m.border_color = Color::rgb(0.22, 0.22, 0.28);
-    m.border_radius = 18.0;
-    m.border_thickness = 2.0;
+    m.color = Color::rgb(0.07, 0.07, 0.09);
+    m.border_color = Color::rgb(0.14, 0.14, 0.18);
+    m.border_radius = 16.0;
+    m.border_thickness = 1.0;
     m.z = 0.2;
     m
 }
@@ -394,16 +387,16 @@ fn make_confirm_root(
     let primary = make_btn(
         font_16,
         primary_label,
-        Color::rgb(0.18, 0.42, 0.88),
-        Color::rgb(0.32, 0.58, 1.0),
+        Color::rgb(0.1, 0.45, 0.9),
+        Color::rgb(0.15, 0.55, 1.0),
     );
     let secondary = make_btn(
         font_16,
         secondary_label,
-        Color::rgb(0.55, 0.18, 0.18),
-        Color::rgb(0.75, 0.28, 0.28),
+        Color::rgb(0.12, 0.12, 0.15),
+        Color::rgb(0.22, 0.22, 0.27),
     );
-    let btn_row = Div::new(row_style(), (primary, secondary));
+    let btn_row = Div::new(row_style(), (secondary, primary));
     let modal = style_modal((info, body_text, btn_row));
     style_root((modal,))
 }

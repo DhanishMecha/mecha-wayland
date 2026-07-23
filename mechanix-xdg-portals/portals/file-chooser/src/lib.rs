@@ -2,6 +2,7 @@ pub mod backend;
 pub mod dialog;
 
 pub use backend::FileChooserBackend;
+
 use app::RegisteredModule;
 
 pub fn filechooser_module<S>() -> impl app::RegisteredModule<S, S>

@@ -1,9 +1,8 @@
 use crate::backend::{AccessOutcome, AccessResponse, RequestHandle};
 use assets::BakedFont;
-use interactivity::InteractivityState;
 use taffy::prelude::*;
 use ui::widgets::{Div, Text};
-use ui::{Point, RenderCommand, Widget, WidgetList, WidgetTree};
+use ui::{EventCtx, Point, RenderCommand, Widget, WidgetList, WidgetTree};
 use utils::Color;
 
 use portal_core::atlas;
@@ -88,26 +87,29 @@ impl WidgetList for AccessDialogUi {
         commands
     }
 
-    fn on_event(&mut self, interactivity: &InteractivityState, _tree: &mut WidgetTree) -> bool {
+    fn on_event(&mut self, ctx: &mut EventCtx) {
+        let interactivity = ctx.interactivity();
         if self.allow_rect != utils::Rect::ZERO && interactivity.is_clicked(self.allow_rect) {
             println!("[access-ui] Allow clicked.");
-            PENDING_DIALOG.set(Some(AccessResponse {
-                handle: self.handle.clone(),
-                outcome: AccessOutcome::Granted,
-            }));
-            return true;
+            PENDING_DIALOG.with(|cell| {
+                cell.set(Some(AccessResponse {
+                    handle: self.handle.clone(),
+                    outcome: AccessOutcome::Granted,
+                }));
+            });
+            return;
         }
 
         if self.deny_rect != utils::Rect::ZERO && interactivity.is_clicked(self.deny_rect) {
             println!("[access-ui] Deny clicked.");
-            PENDING_DIALOG.set(Some(AccessResponse {
-                handle: self.handle.clone(),
-                outcome: AccessOutcome::Denied,
-            }));
-            return true;
+            PENDING_DIALOG.with(|cell| {
+                cell.set(Some(AccessResponse {
+                    handle: self.handle.clone(),
+                    outcome: AccessOutcome::Denied,
+                }));
+            });
+            return;
         }
-
-        false
     }
 
     fn wants_input(&self) -> bool {

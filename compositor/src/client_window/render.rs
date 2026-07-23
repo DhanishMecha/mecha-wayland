@@ -3,7 +3,7 @@ use std::os::fd::AsFd;
 use renderer::{DmaBuf, Renderer};
 use wayland::{Handle, ZwpLinuxBufferParamsV1Flags, ZwpLinuxDmabufV1};
 
-use crate::window::Slot;
+use super::Slot;
 
 const DRM_FORMAT_ARGB8888: u32 = 0x3432_5241;
 

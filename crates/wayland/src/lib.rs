@@ -19,9 +19,7 @@ pub use client::module;
 #[cfg(feature = "server")]
 pub mod server;
 #[cfg(feature = "server")]
-pub use server::{
-    ClientConnected, ClientId, ClientRawEvent, WaylandServer, server_module,
-};
+pub use server::{ClientConnected, ClientId, ClientRawEvent, WaylandServer, server_module};
 
 pub use proto::*;
 
@@ -32,6 +30,9 @@ pub trait Interface {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct ObjectId(pub(crate) u32);
+
+/// The wl_display singleton always uses object ID 1.
+pub const DISPLAY_OBJECT_ID: ObjectId = ObjectId(1);
 
 #[derive(Debug)]
 pub struct RawWaylandEvent {
@@ -303,6 +304,11 @@ impl WaylandProxy {
         self.0.borrow_mut().submit_write();
     }
 
+    /// Returns `true` if two proxies belong to the same Wayland connection.
+    pub fn is_same_connection(&self, other: &WaylandProxy) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+
     pub(crate) fn write_raw(
         &self,
         sender_id: u32,
@@ -371,6 +377,21 @@ pub struct Handle<T: Interface> {
     slot: Weak<ObjectId>,
     pub proxy: WaylandProxy,
     _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: Interface> PartialEq for Handle<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.object_id().expect("missing object id")
+            == other.object_id().expect("missing object id")
+    }
+}
+
+impl<T: Interface> Eq for Handle<T> {}
+
+impl<T: Interface> std::hash::Hash for Handle<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.object_id().expect("missing object id").hash(state);
+    }
 }
 
 impl<T: Interface> Handle<T> {

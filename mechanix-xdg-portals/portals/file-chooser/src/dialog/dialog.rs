@@ -1,6 +1,5 @@
 use crate::backend::{ FileChooserOutcome, FileChooserResponse, RequestHandle };
 use assets::BakedFont;
-use interactivity::InteractivityState;
 use std::path::PathBuf;
 use taffy::prelude::*;
 use ui::widgets::{ Div, Text };
@@ -9,7 +8,6 @@ use utils::Color;
 
 use super::widgets::{ FileEntry, FileRow, FileRows, Footer };
 use super::ChooserOptions;
-use super::PENDING_DIALOG;
 use portal_core::atlas;
 
 // Helper to convert Vec<u8> to PathBuf safely
@@ -196,7 +194,10 @@ impl WidgetList for FileChooserUi {
         commands
     }
 
-    fn on_event(&mut self, interactivity: &InteractivityState, tree: &mut WidgetTree) -> bool {
+    fn on_event(&mut self, ctx: &mut ui::EventCtx) {
+        let interactivity = ctx.interactivity();
+        let tree = ctx.tree();
+
         // 1. Check Choose button
         if self.choose_rect != utils::Rect::ZERO && interactivity.is_clicked(self.choose_rect) {
             let selected_uris = match &self.options {
@@ -253,26 +254,26 @@ impl WidgetList for FileChooserUi {
 
             if !selected_uris.is_empty() {
                 println!("[ui] Choose clicked: {:?}", selected_uris);
-                PENDING_DIALOG.set(
-                    Some(FileChooserResponse {
+                super::PENDING_DIALOG.with(|cell| {
+                    cell.set(Some(FileChooserResponse {
                         handle: self.handle.clone(),
                         outcome: FileChooserOutcome::Selected(selected_uris),
-                    })
-                );
-                return true;
+                    }));
+                });
+                return;
             }
         }
 
         // 2. Check Cancel button
         if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
             println!("[ui] Cancel clicked.");
-            PENDING_DIALOG.set(
-                Some(FileChooserResponse {
+            super::PENDING_DIALOG.with(|cell| {
+                cell.set(Some(FileChooserResponse {
                     handle: self.handle.clone(),
                     outcome: FileChooserOutcome::Cancelled,
-                })
-            );
-            return true;
+                }));
+            });
+            return;
         }
 
         // 3. Check Row clicks
@@ -289,7 +290,7 @@ impl WidgetList for FileChooserUi {
                         self.load_directory(tree);
                     } else {
                         if path.as_os_str().is_empty() {
-                            return false;
+                            return;
                         }
                         let is_multiple = match &self.options {
                             ChooserOptions::OpenFile(opt) => opt.multiple.unwrap_or(false),
@@ -307,12 +308,10 @@ impl WidgetList for FileChooserUi {
                         println!("[ui] Selected paths: {:?}", self.selected_paths);
                         self.load_directory(tree);
                     }
-                    return true;
+                    return;
                 }
             }
         }
-
-        false
     }
 
     fn wants_input(&self) -> bool {

@@ -15,7 +15,6 @@ use super::types::{
 };
 use portal_core::{ RequestClose, PORTAL_PATH, RESPONSE_CANCELLED, RESPONSE_SUCCESS };
 
-// --- Backend state -----------------------------------------------------------
 #[derive(State)]
 pub struct FileChooserBackend {
     proxy: DbusProxy<SessionBus>,
@@ -73,33 +72,40 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
                     _ => {}
                 }
 
-                // OpenFile / SaveFile / SaveFiles -> open the dialog.
+                // OpenFile
                 if let Some(Ok(call)) = IncomingCall::<OpenFile>::try_from(&ev.msg) {
-                    let (handle, _app_id, _parent, title, options) = &call.args;
+                    let (handle, app_id, _parent, title, _options) = &call.args;
+                    println!("[file-chooser] OpenFile: app_id={app_id} title='{title}' handle={}", handle.as_str());
                     return Some(FileChooserRequest::OpenFile {
                         handle: s.stash_pending(handle, call.raw()),
                         title: title.clone(),
-                        options: options.clone(),
-                    });
-                }
-                if let Some(Ok(call)) = IncomingCall::<SaveFile>::try_from(&ev.msg) {
-                    let (handle, _app_id, _parent, title, options) = &call.args;
-                    return Some(FileChooserRequest::SaveFile {
-                        handle: s.stash_pending(handle, call.raw()),
-                        title: title.clone(),
-                        options: options.clone(),
-                    });
-                }
-                if let Some(Ok(call)) = IncomingCall::<SaveFiles>::try_from(&ev.msg) {
-                    let (handle, _app_id, _parent, title, options) = &call.args;
-                    return Some(FileChooserRequest::SaveFiles {
-                        handle: s.stash_pending(handle, call.raw()),
-                        title: title.clone(),
-                        options: options.clone(),
+                        options: _options.clone(),
                     });
                 }
 
-                // Request.Close -> cancel.
+                // SaveFile
+                if let Some(Ok(call)) = IncomingCall::<SaveFile>::try_from(&ev.msg) {
+                    let (handle, app_id, _parent, title, _options) = &call.args;
+                    println!("[file-chooser] SaveFile: app_id={app_id} title='{title}' handle={}", handle.as_str());
+                    return Some(FileChooserRequest::SaveFile {
+                        handle: s.stash_pending(handle, call.raw()),
+                        title: title.clone(),
+                        options: _options.clone(),
+                    });
+                }
+
+                // SaveFiles
+                if let Some(Ok(call)) = IncomingCall::<SaveFiles>::try_from(&ev.msg) {
+                    let (handle, app_id, _parent, title, _options) = &call.args;
+                    println!("[file-chooser] SaveFiles: app_id={app_id} title='{title}' handle={}", handle.as_str());
+                    return Some(FileChooserRequest::SaveFiles {
+                        handle: s.stash_pending(handle, call.raw()),
+                        title: title.clone(),
+                        options: _options.clone(),
+                    });
+                }
+
+                // Request.Close -> cancel
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
                     if let Some(handle) = &call.path {
                         if s.pending.contains_key(handle) {
@@ -147,6 +153,7 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
                         s.proxy.reply_unknown_method(m);
                     }
                 }
+
                 None
             }
         )

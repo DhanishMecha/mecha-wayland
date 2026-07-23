@@ -1,9 +1,8 @@
 use crate::backend::{RequestHandle, ScreenCastOutcome, ScreenCastResponse};
 use assets::BakedFont;
-use interactivity::InteractivityState;
 use taffy::prelude::*;
 use ui::widgets::{Div, Text};
-use ui::{Point, RenderCommand, Widget, WidgetList, WidgetTree};
+use ui::{EventCtx, Point, RenderCommand, Widget, WidgetList, WidgetTree};
 use utils::Color;
 
 use portal_core::atlas;
@@ -87,28 +86,31 @@ impl WidgetList for ScreenCastDialogUi {
         commands
     }
 
-    fn on_event(&mut self, interactivity: &InteractivityState, _tree: &mut WidgetTree) -> bool {
+    fn on_event(&mut self, ctx: &mut EventCtx) {
+        let interactivity = ctx.interactivity();
         if self.confirm_rect != utils::Rect::ZERO && interactivity.is_clicked(self.confirm_rect) {
             println!("[screencast-ui] Confirmed for handle={}", self.handle);
-            PENDING_DIALOG.set(Some(ScreenCastResponse {
-                handle: self.handle.clone(),
-                outcome: ScreenCastOutcome::Granted {
-                    selected_type: self.selected_type,
-                },
-            }));
-            return true;
+            PENDING_DIALOG.with(|cell| {
+                cell.set(Some(ScreenCastResponse {
+                    handle: self.handle.clone(),
+                    outcome: ScreenCastOutcome::Granted {
+                        selected_type: self.selected_type,
+                    },
+                }));
+            });
+            return;
         }
 
         if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
             println!("[screencast-ui] Cancelled for handle={}", self.handle);
-            PENDING_DIALOG.set(Some(ScreenCastResponse {
-                handle: self.handle.clone(),
-                outcome: ScreenCastOutcome::Denied,
-            }));
-            return true;
+            PENDING_DIALOG.with(|cell| {
+                cell.set(Some(ScreenCastResponse {
+                    handle: self.handle.clone(),
+                    outcome: ScreenCastOutcome::Denied,
+                }));
+            });
+            return;
         }
-
-        false
     }
 
     fn wants_input(&self) -> bool {

@@ -1,9 +1,8 @@
 use crate::backend::{RequestHandle, ScreenshotOutcome, ScreenshotResponse};
 use assets::BakedFont;
-use interactivity::InteractivityState;
 use taffy::prelude::*;
 use ui::widgets::{Div, Text};
-use ui::{Point, RenderCommand, Widget, WidgetList, WidgetTree};
+use ui::{EventCtx, Point, RenderCommand, Widget, WidgetList, WidgetTree};
 use utils::Color;
 
 use portal_core::atlas;
@@ -84,26 +83,29 @@ impl WidgetList for ScreenshotDialogUi {
         commands
     }
 
-    fn on_event(&mut self, interactivity: &InteractivityState, _tree: &mut WidgetTree) -> bool {
+    fn on_event(&mut self, ctx: &mut EventCtx) {
+        let interactivity = ctx.interactivity();
         if self.confirm_rect != utils::Rect::ZERO && interactivity.is_clicked(self.confirm_rect) {
             println!("[screenshot-ui] Confirmed for handle={}", self.handle);
-            PENDING_DIALOG.set(Some(ScreenshotResponse {
-                handle: self.handle.clone(),
-                outcome: ScreenshotOutcome::Granted,
-            }));
-            return true;
+            PENDING_DIALOG.with(|cell| {
+                cell.set(Some(ScreenshotResponse {
+                    handle: self.handle.clone(),
+                    outcome: ScreenshotOutcome::Granted,
+                }));
+            });
+            return;
         }
 
         if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
             println!("[screenshot-ui] Cancelled for handle={}", self.handle);
-            PENDING_DIALOG.set(Some(ScreenshotResponse {
-                handle: self.handle.clone(),
-                outcome: ScreenshotOutcome::Denied,
-            }));
-            return true;
+            PENDING_DIALOG.with(|cell| {
+                cell.set(Some(ScreenshotResponse {
+                    handle: self.handle.clone(),
+                    outcome: ScreenshotOutcome::Denied,
+                }));
+            });
+            return;
         }
-
-        false
     }
 
     fn wants_input(&self) -> bool {

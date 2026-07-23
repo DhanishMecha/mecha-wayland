@@ -93,7 +93,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // Reconnect/Disconnect handler for dbus
                 match &ev.msg {
                     DbusMessage::Reconnected => {
-                        println!("[bt] System bus reconnected. Re-registering agent...");
+                        println!("[bluetooth] system bus reconnected, re-registering agent");
                         s.bootstrap();
                         return None;
                     }
@@ -101,7 +101,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                         s.pending = None;
                         s.register_agent.clear();
                         s.request_default_agent.clear();
-                        println!("[bt] System bus disconnected.");
+                        println!("[bluetooth] system bus disconnected");
                         return None;
                     }
                     _ => {}
@@ -111,14 +111,12 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 if let Some((_, res)) = s.register_agent.resolve(&ev.msg) {
                     match res {
                         Ok(()) => {
-                            println!(
-                                "[bt] Agent registered at {AGENT_PATH} (cap={AGENT_CAPABILITY})"
-                            );
+                            println!("[bluetooth] agent registered at {AGENT_PATH} (cap={AGENT_CAPABILITY}), requesting default");
                             let path =
                                 OwnedObjectPath::try_from(AGENT_PATH).expect("valid agent path");
                             s.request_default_agent.call(&s.proxy, &(path,), ());
                         }
-                        Err(e) => eprintln!("[bt] RegisterAgent failed: {e}"),
+                        Err(e) => eprintln!("[bluetooth] RegisterAgent failed: {e}"),
                     }
                     return None;
                 }
@@ -126,8 +124,8 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // RequestDefaultAgent reply
                 if let Some((_, res)) = s.request_default_agent.resolve(&ev.msg) {
                     match res {
-                        Ok(()) => println!("[bt] Set as default agent."),
-                        Err(e) => eprintln!("[bt] RequestDefaultAgent: {e}"),
+                        Ok(()) => println!("[bluetooth] set as default agent"),
+                        Err(e) => eprintln!("[bluetooth] RequestDefaultAgent failed: {e}"),
                     }
                     return None;
                 }
@@ -136,15 +134,15 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
 
                 // Release - BlueZ is unregistering us
                 if let Some(Ok(call)) = IncomingCall::<Release>::try_from(&ev.msg) {
+                    println!("[bluetooth] agent released by BlueZ");
                     call.respond(&s.proxy, &());
-                    println!("[bt] Agent released by BlueZ.");
                     return None;
                 }
 
                 // RequestPinCode - stash and ask the UI for keyboard input.
                 if let Some(Ok(call)) = IncomingCall::<RequestPinCode>::try_from(&ev.msg) {
                     let (device,) = &call.args;
-                    println!("[bt] RequestPinCode: device={}", device.as_str());
+                    println!("[bluetooth] RequestPinCode: device={}", device.as_str());
                     s.stash_pending(call.raw());
                     return Some(BluetoothRequest::RequestPinCode {
                         device: device.as_str().to_string(),
@@ -154,6 +152,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // DisplayPinCode - fire-and-forget; reply immediately.
                 if let Some(Ok(call)) = IncomingCall::<DisplayPinCode>::try_from(&ev.msg) {
                     let (device, pincode) = &call.args;
+                    println!("[bluetooth] DisplayPinCode: device={} pincode={}", device.as_str(), pincode);
                     call.respond(&s.proxy, &());
                     return Some(BluetoothRequest::DisplayPinCode {
                         device: device.as_str().to_string(),
@@ -164,7 +163,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // RequestPasskey — stash and ask the UI for keyboard input.
                 if let Some(Ok(call)) = IncomingCall::<RequestPasskey>::try_from(&ev.msg) {
                     let (device,) = &call.args;
-                    println!("[bt] RequestPasskey: device={}", device.as_str());
+                    println!("[bluetooth] RequestPasskey: device={}", device.as_str());
                     s.stash_pending(call.raw());
                     return Some(BluetoothRequest::RequestPasskey {
                         device: device.as_str().to_string(),
@@ -174,6 +173,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // DisplayPasskey — fire-and-forget; reply immediately.
                 if let Some(Ok(call)) = IncomingCall::<DisplayPasskey>::try_from(&ev.msg) {
                     let (device, passkey, entered) = &call.args;
+                    println!("[bluetooth] DisplayPasskey: device={} passkey={} entered={}", device.as_str(), passkey, entered);
                     call.respond(&s.proxy, &());
                     return Some(BluetoothRequest::DisplayPasskey {
                         device: device.as_str().to_string(),
@@ -185,11 +185,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // RequestConfirmation — stash and ask the UI.
                 if let Some(Ok(call)) = IncomingCall::<RequestConfirmation>::try_from(&ev.msg) {
                     let (device, passkey) = &call.args;
-                    println!(
-                        "[bt] RequestConfirmation: device={} passkey={}",
-                        device.as_str(),
-                        passkey
-                    );
+                    println!("[bluetooth] RequestConfirmation: device={} passkey={}", device.as_str(), passkey);
                     s.stash_pending(call.raw());
                     return Some(BluetoothRequest::RequestConfirmation {
                         device: device.as_str().to_string(),
@@ -200,7 +196,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // RequestAuthorization — stash and ask the UI.
                 if let Some(Ok(call)) = IncomingCall::<RequestAuthorization>::try_from(&ev.msg) {
                     let (device,) = &call.args;
-                    println!("[bt] RequestAuthorization: device={}", device.as_str());
+                    println!("[bluetooth] RequestAuthorization: device={}", device.as_str());
                     s.stash_pending(call.raw());
                     return Some(BluetoothRequest::RequestAuthorization {
                         device: device.as_str().to_string(),
@@ -210,11 +206,7 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                 // AuthorizeService — stash and ask the UI.
                 if let Some(Ok(call)) = IncomingCall::<AuthorizeService>::try_from(&ev.msg) {
                     let (device, uuid) = &call.args;
-                    println!(
-                        "[bt] AuthorizeService: device={} uuid={}",
-                        device.as_str(),
-                        uuid
-                    );
+                    println!("[bluetooth] AuthorizeService: device={} uuid={}", device.as_str(), uuid);
                     s.stash_pending(call.raw());
                     return Some(BluetoothRequest::AuthorizeService {
                         device: device.as_str().to_string(),
@@ -229,14 +221,19 @@ pub fn bluetooth_module<S>() -> impl RegisteredModule<BluetoothBackend, S> {
                     return Some(BluetoothRequest::Cancel);
                 }
 
-                // Standard interfaces (Peer, Introspectable) for our agent path.
+                // Standard interfaces
                 if BlueZAgent::handle_standard(&s.proxy, AGENT_PATH, &ev.msg) {
                     return None;
                 }
 
-                // Unknown call on our agent path.
+                // Unknown method call
                 if let DbusMessage::Call(m) = &ev.msg {
                     if m.header().path().is_some_and(|p| p.as_str() == AGENT_PATH) {
+                        eprintln!(
+                            "[bluetooth] unknown method: interface={:?} member={:?}",
+                            m.header().interface(),
+                            m.header().member()
+                        );
                         s.proxy.reply_unknown_method(m);
                     }
                 }

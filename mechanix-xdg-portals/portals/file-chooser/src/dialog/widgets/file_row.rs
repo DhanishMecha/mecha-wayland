@@ -1,9 +1,8 @@
 use assets::BakedFont;
-use interactivity::InteractivityState;
 use std::path::PathBuf;
 use taffy::prelude::*;
 use ui::widgets::{ Div, Text };
-use ui::{ Point, Render, RenderCommand, Widget, WidgetTree };
+use ui::{ EventCtx, Point, Render, RenderCommand, Widget, WidgetTree };
 use utils::Color;
 
 #[derive(Clone)]
@@ -162,13 +161,9 @@ impl ui::WidgetList for FileRows {
         commands
     }
 
-    fn on_event(&mut self, interactivity: &InteractivityState, tree: &mut WidgetTree) -> bool {
-        let mut handled = false;
+    fn on_event(&mut self, ctx: &mut EventCtx) {
         for w in self.0.iter_mut() {
-            if Widget::on_event(w, interactivity, tree) {
-                handled = true;
-            }
+            Widget::on_event(w, ctx);
         }
-        handled
     }
 }

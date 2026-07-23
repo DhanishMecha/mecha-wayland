@@ -1,5 +1,5 @@
 use app::{RegisteredModule, prelude::*};
-use wayland::{WlDisplayRequest, WlRegistryRequest};
+use wayland::WlDisplayRequest;
 
 #[derive(Debug, State)]
 pub struct WlRegistryState {
@@ -41,16 +41,6 @@ pub fn module<S>() -> impl RegisteredModule<WlRegistryState, S> {
                     registry.global(name, interface, version);
                 }
             }
-            hlist![]
-        })
-        .on(|_: &mut WlRegistryState, ev: &WlRegistryRequest| {
-            let WlRegistryRequest::Bind {
-                client_id,
-                name,
-                id,
-                ..
-            } = ev;
-            println!("client {:?} bind name={} id={:?}", client_id, name, id);
             hlist![]
         })
 }
