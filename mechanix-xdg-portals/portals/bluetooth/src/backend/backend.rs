@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
-use app::{RegisteredModule, prelude::*};
+use app::{prelude::*, RegisteredModule};
 use dbus::{DbusEvent, DbusMessage, DbusProxy, IncomingCall, Pending, SystemBus};
 use zbus::message::Message;
 use zbus::zvariant::OwnedObjectPath;
 
 use super::interface::{
-    AGENT_PATH, AuthorizeService, BlueZAgent, Cancel, DisplayPasskey, DisplayPinCode,
-    RegisterAgent, Release, RequestAuthorization, RequestConfirmation, RequestDefaultAgent,
-    RequestPasskey, RequestPinCode,
+    AuthorizeService, BlueZAgent, Cancel, DisplayPasskey, DisplayPinCode, RegisterAgent, Release,
+    RequestAuthorization, RequestConfirmation, RequestDefaultAgent, RequestPasskey, RequestPinCode,
+    AGENT_PATH,
 };
 use super::types::{AgentCapability, BluetoothOutcome, BluetoothRequest, BluetoothResponse};
 

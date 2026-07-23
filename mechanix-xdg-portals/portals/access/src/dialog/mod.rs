@@ -3,25 +3,23 @@ mod dialog;
 pub use dialog::AccessDialogUi;
 
 use crate::backend::{AccessRequest, AccessResponse, RequestHandle};
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use window_manager::{WindowId, WindowKind, WindowManager, WindowSettings};
-
-// Thread-local slots for passing results back to the app main loop.
-thread_local! {
-    pub static PENDING_DIALOG: Cell<Option<AccessResponse>> = const { Cell::new(None) };
-    pub static ACTIVE_WINDOWS: std::cell::RefCell<HashMap<RequestHandle, WindowId>> =
-        std::cell::RefCell::new(HashMap::new());
-}
 
 /// Coordinator: spawns / closes Access dialog windows and polls for results.
 pub fn access_ui_module<S>() -> impl app::RegisteredModule<WindowManager, S>
 where
     S: app::Lens<WindowManager> + 'static,
 {
+    let active_windows = Rc::new(RefCell::new(HashMap::<RequestHandle, WindowId>::new()));
+
     app::Module::<WindowManager, _, _>::new()
-        .on(|wm: &mut WindowManager, cmd: &AccessRequest| {
-            match cmd {
+        .mount(ui::register_events!(AccessResponse))
+        .on({
+            let active_windows = active_windows.clone();
+            move |wm: &mut WindowManager, cmd: &AccessRequest| match cmd {
                 AccessRequest::AccessDialog {
                     handle,
                     app_id,
@@ -39,7 +37,6 @@ where
                     let grant_label = options.grant_label.clone();
                     let choices = options.choices.clone();
 
-                    // TODO: Pass parent_window identifier and respect options.modal for window parenting
                     let id = wm.spawn_window(
                         WindowSettings {
                             width: 540,
@@ -64,34 +61,26 @@ where
                         ),
                     );
 
-                    ACTIVE_WINDOWS.with(|wins| {
-                        wins.borrow_mut().insert(handle.clone(), id);
-                    });
+                    active_windows.borrow_mut().insert(handle.clone(), id);
                     wm.flush_pending();
                 }
                 AccessRequest::Close { handle } => {
                     println!("[access-ui] Portal requested close for handle={handle}.");
-                    let id = ACTIVE_WINDOWS.with(|wins| wins.borrow_mut().remove(handle));
+                    let id = active_windows.borrow_mut().remove(handle);
                     if let Some(id) = id {
                         wm.destroy(id);
                     }
                 }
             }
         })
-        .on(
-            |wm: &mut WindowManager, _: &app::Poll| -> Option<AccessResponse> {
-                let done = PENDING_DIALOG.take();
-                if let Some(ref done) = done {
-                    let id = ACTIVE_WINDOWS.with(|wins| wins.borrow_mut().remove(&done.handle));
-                    if let Some(id) = id {
-                        println!(
-                            "[access-ui] Dialog completed ({:?}). Closing window.",
-                            done.outcome
-                        );
-                        wm.destroy(id);
-                    }
-                }
-                done
-            },
-        )
+        .on(move |wm: &mut WindowManager, resp: &AccessResponse| {
+            let id = active_windows.borrow_mut().remove(&resp.handle);
+            if let Some(id) = id {
+                println!(
+                    "[access-ui] Dialog completed ({:?}). Closing window.",
+                    resp.outcome
+                );
+                wm.destroy(id);
+            }
+        })
 }

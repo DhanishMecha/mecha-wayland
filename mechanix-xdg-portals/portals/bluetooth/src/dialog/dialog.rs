@@ -142,7 +142,9 @@ impl WidgetList for BluetoothDialogUi {
 
     fn on_event(&mut self, ctx: &mut EventCtx) {
         // Primary button: Dismiss (display) or Confirm/Allow (request)
-        if self.primary_rect != utils::Rect::ZERO && ctx.interactivity().is_clicked(self.primary_rect) {
+        if self.primary_rect != utils::Rect::ZERO
+            && ctx.interactivity().is_clicked(self.primary_rect)
+        {
             let outcome = if self.is_display {
                 BluetoothOutcome::Dismissed
             } else {
@@ -305,14 +307,14 @@ fn modal_style() -> Style {
         justify_content: Some(JustifyContent::SpaceBetween),
         align_items: Some(AlignItems::Center),
         size: Size {
-            width: percent(1.0_f32),
-            height: percent(1.0_f32),
+            width: length(440.0_f32),
+            height: length(280.0_f32),
         },
         padding: taffy::Rect {
-            left: length(24.0_f32),
-            right: length(24.0_f32),
-            top: length(32.0_f32),
-            bottom: length(24.0_f32),
+            left: length(40.0_f32),
+            right: length(40.0_f32),
+            top: length(36.0_f32),
+            bottom: length(36.0_f32),
         },
         ..Default::default()
     }
@@ -344,7 +346,7 @@ fn style_modal<T: WidgetList>(children: T) -> Div<T> {
 
 fn style_root<T: WidgetList>(children: T) -> Div<T> {
     let mut r = Div::new(root_style(), children);
-    r.color = Color::rgba(0.0, 0.0, 0.0, 0.65);
+    r.color = Color::TRANSPARENT;
     r.z = 0.1;
     r
 }

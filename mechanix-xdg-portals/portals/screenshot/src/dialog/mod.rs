@@ -3,24 +3,22 @@ mod dialog;
 pub use dialog::ScreenshotDialogUi;
 
 use crate::backend::{RequestHandle, ScreenshotRequest, ScreenshotResponse};
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use window_manager::{WindowId, WindowKind, WindowManager, WindowSettings};
-
-thread_local! {
-    pub static PENDING_DIALOG: Cell<Option<ScreenshotResponse>> = const { Cell::new(None) };
-    pub static ACTIVE_WINDOWS: std::cell::RefCell<
-        HashMap<RequestHandle, WindowId>
-    > = std::cell::RefCell::new(HashMap::new());
-}
 
 pub fn screenshot_ui_module<S>() -> impl app::RegisteredModule<WindowManager, S>
 where
     S: app::Lens<WindowManager> + 'static,
 {
+    let active_windows = Rc::new(RefCell::new(HashMap::<RequestHandle, WindowId>::new()));
+
     app::Module::<WindowManager, _, _>::new()
-        .on(
-            |wm: &mut WindowManager, cmd: &ScreenshotRequest| match cmd {
+        .mount(ui::register_events!(ScreenshotResponse))
+        .on({
+            let active_windows = active_windows.clone();
+            move |wm: &mut WindowManager, cmd: &ScreenshotRequest| match cmd {
                 ScreenshotRequest::Screenshot {
                     handle,
                     app_id,
@@ -65,9 +63,7 @@ where
                         ),
                     );
 
-                    ACTIVE_WINDOWS.with(|wins| {
-                        wins.borrow_mut().insert(handle.clone(), id);
-                    });
+                    active_windows.borrow_mut().insert(handle.clone(), id);
                     wm.flush_pending();
                 }
 
@@ -99,35 +95,27 @@ where
                         ),
                     );
 
-                    ACTIVE_WINDOWS.with(|wins| {
-                        wins.borrow_mut().insert(handle.clone(), id);
-                    });
+                    active_windows.borrow_mut().insert(handle.clone(), id);
                     wm.flush_pending();
                 }
 
                 ScreenshotRequest::Close { handle } => {
                     println!("[screenshot-ui] Portal requested close for handle={handle}.");
-                    let id = ACTIVE_WINDOWS.with(|wins| wins.borrow_mut().remove(handle));
+                    let id = active_windows.borrow_mut().remove(handle);
                     if let Some(id) = id {
                         wm.destroy(id);
                     }
                 }
-            },
-        )
-        .on(
-            |wm: &mut WindowManager, _: &app::Poll| -> Option<ScreenshotResponse> {
-                let done = PENDING_DIALOG.take();
-                if let Some(ref done) = done {
-                    let id = ACTIVE_WINDOWS.with(|wins| wins.borrow_mut().remove(&done.handle));
-                    if let Some(id) = id {
-                        println!(
-                            "[screenshot-ui] Dialog completed ({:?}). Closing window.",
-                            done.outcome
-                        );
-                        wm.destroy(id);
-                    }
-                }
-                done
-            },
-        )
+            }
+        })
+        .on(move |wm: &mut WindowManager, resp: &ScreenshotResponse| {
+            let id = active_windows.borrow_mut().remove(&resp.handle);
+            if let Some(id) = id {
+                println!(
+                    "[screenshot-ui] Dialog completed ({:?}). Closing window.",
+                    resp.outcome
+                );
+                wm.destroy(id);
+            }
+        })
 }

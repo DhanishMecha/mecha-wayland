@@ -8,7 +8,6 @@ use utils::Color;
 use portal_core::atlas;
 use portal_core::widgets::Button;
 
-use super::PENDING_DIALOG;
 
 pub type HeaderDiv = Div<(Text, Text, Text)>;
 pub type ButtonRowDiv = Div<(Button, Button)>;
@@ -91,22 +90,18 @@ impl WidgetList for AccessDialogUi {
         let interactivity = ctx.interactivity();
         if self.allow_rect != utils::Rect::ZERO && interactivity.is_clicked(self.allow_rect) {
             println!("[access-ui] Allow clicked.");
-            PENDING_DIALOG.with(|cell| {
-                cell.set(Some(AccessResponse {
-                    handle: self.handle.clone(),
-                    outcome: AccessOutcome::Granted,
-                }));
+            ctx.dispatch(AccessResponse {
+                handle: self.handle.clone(),
+                outcome: AccessOutcome::Granted,
             });
             return;
         }
 
         if self.deny_rect != utils::Rect::ZERO && interactivity.is_clicked(self.deny_rect) {
             println!("[access-ui] Deny clicked.");
-            PENDING_DIALOG.with(|cell| {
-                cell.set(Some(AccessResponse {
-                    handle: self.handle.clone(),
-                    outcome: AccessOutcome::Denied,
-                }));
+            ctx.dispatch(AccessResponse {
+                handle: self.handle.clone(),
+                outcome: AccessOutcome::Denied,
             });
             return;
         }

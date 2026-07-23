@@ -3,24 +3,22 @@ mod dialog;
 pub use dialog::ScreenCastDialogUi;
 
 use crate::backend::{RequestHandle, ScreenCastRequest, ScreenCastResponse};
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use window_manager::{WindowId, WindowKind, WindowManager, WindowSettings};
-
-thread_local! {
-    pub static PENDING_DIALOG: Cell<Option<ScreenCastResponse>> = const { Cell::new(None) };
-    pub static ACTIVE_WINDOWS: std::cell::RefCell<
-        HashMap<RequestHandle, WindowId>
-    > = std::cell::RefCell::new(HashMap::new());
-}
 
 pub fn screencast_ui_module<S>() -> impl app::RegisteredModule<WindowManager, S>
 where
     S: app::Lens<WindowManager> + 'static,
 {
+    let active_windows = Rc::new(RefCell::new(HashMap::<RequestHandle, WindowId>::new()));
+
     app::Module::<WindowManager, _, _>::new()
-        .on(
-            |wm: &mut WindowManager, cmd: &ScreenCastRequest| match cmd {
+        .mount(ui::register_events!(ScreenCastResponse))
+        .on({
+            let active_windows = active_windows.clone();
+            move |wm: &mut WindowManager, cmd: &ScreenCastRequest| match cmd {
                 ScreenCastRequest::Start {
                     handle,
                     session_handle: _,
@@ -57,35 +55,27 @@ where
                         ),
                     );
 
-                    ACTIVE_WINDOWS.with(|wins| {
-                        wins.borrow_mut().insert(handle.clone(), id);
-                    });
+                    active_windows.borrow_mut().insert(handle.clone(), id);
                     wm.flush_pending();
                 }
 
                 ScreenCastRequest::Close { handle } => {
                     println!("[screencast-ui] Portal requested close for handle={handle}.");
-                    let id = ACTIVE_WINDOWS.with(|wins| wins.borrow_mut().remove(handle));
+                    let id = active_windows.borrow_mut().remove(handle);
                     if let Some(id) = id {
                         wm.destroy(id);
                     }
                 }
-            },
-        )
-        .on(
-            |wm: &mut WindowManager, _: &app::Poll| -> Option<ScreenCastResponse> {
-                let done = PENDING_DIALOG.take();
-                if let Some(ref done) = done {
-                    let id = ACTIVE_WINDOWS.with(|wins| wins.borrow_mut().remove(&done.handle));
-                    if let Some(id) = id {
-                        println!(
-                            "[screencast-ui] Dialog completed ({:?}). Closing window.",
-                            done.outcome
-                        );
-                        wm.destroy(id);
-                    }
-                }
-                done
-            },
-        )
+            }
+        })
+        .on(move |wm: &mut WindowManager, resp: &ScreenCastResponse| {
+            let id = active_windows.borrow_mut().remove(&resp.handle);
+            if let Some(id) = id {
+                println!(
+                    "[screencast-ui] Dialog completed ({:?}). Closing window.",
+                    resp.outcome
+                );
+                wm.destroy(id);
+            }
+        })
 }

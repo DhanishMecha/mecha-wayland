@@ -254,11 +254,9 @@ impl WidgetList for FileChooserUi {
 
             if !selected_uris.is_empty() {
                 println!("[ui] Choose clicked: {:?}", selected_uris);
-                super::PENDING_DIALOG.with(|cell| {
-                    cell.set(Some(FileChooserResponse {
-                        handle: self.handle.clone(),
-                        outcome: FileChooserOutcome::Selected(selected_uris),
-                    }));
+                ctx.dispatch(FileChooserResponse {
+                    handle: self.handle.clone(),
+                    outcome: FileChooserOutcome::Selected(selected_uris),
                 });
                 return;
             }
@@ -267,11 +265,9 @@ impl WidgetList for FileChooserUi {
         // 2. Check Cancel button
         if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
             println!("[ui] Cancel clicked.");
-            super::PENDING_DIALOG.with(|cell| {
-                cell.set(Some(FileChooserResponse {
-                    handle: self.handle.clone(),
-                    outcome: FileChooserOutcome::Cancelled,
-                }));
+            ctx.dispatch(FileChooserResponse {
+                handle: self.handle.clone(),
+                outcome: FileChooserOutcome::Cancelled,
             });
             return;
         }

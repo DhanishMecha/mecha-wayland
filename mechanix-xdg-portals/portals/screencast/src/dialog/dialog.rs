@@ -8,7 +8,6 @@ use utils::Color;
 use portal_core::atlas;
 use portal_core::widgets::Button;
 
-use super::PENDING_DIALOG;
 
 pub type HeaderDiv = Div<(Text, Text, Text)>;
 pub type ButtonRowDiv = Div<(Button, Button)>;
@@ -90,24 +89,20 @@ impl WidgetList for ScreenCastDialogUi {
         let interactivity = ctx.interactivity();
         if self.confirm_rect != utils::Rect::ZERO && interactivity.is_clicked(self.confirm_rect) {
             println!("[screencast-ui] Confirmed for handle={}", self.handle);
-            PENDING_DIALOG.with(|cell| {
-                cell.set(Some(ScreenCastResponse {
-                    handle: self.handle.clone(),
-                    outcome: ScreenCastOutcome::Granted {
-                        selected_type: self.selected_type,
-                    },
-                }));
+            ctx.dispatch(ScreenCastResponse {
+                handle: self.handle.clone(),
+                outcome: ScreenCastOutcome::Granted {
+                    selected_type: self.selected_type,
+                },
             });
             return;
         }
 
         if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
             println!("[screencast-ui] Cancelled for handle={}", self.handle);
-            PENDING_DIALOG.with(|cell| {
-                cell.set(Some(ScreenCastResponse {
-                    handle: self.handle.clone(),
-                    outcome: ScreenCastOutcome::Denied,
-                }));
+            ctx.dispatch(ScreenCastResponse {
+                handle: self.handle.clone(),
+                outcome: ScreenCastOutcome::Denied,
             });
             return;
         }

@@ -8,7 +8,6 @@ use utils::Color;
 use portal_core::atlas;
 use portal_core::widgets::Button;
 
-use super::PENDING_DIALOG;
 
 pub type HeaderDiv = Div<(Text, Text, Text)>;
 pub type ButtonRowDiv = Div<(Button, Button)>;
@@ -87,22 +86,18 @@ impl WidgetList for ScreenshotDialogUi {
         let interactivity = ctx.interactivity();
         if self.confirm_rect != utils::Rect::ZERO && interactivity.is_clicked(self.confirm_rect) {
             println!("[screenshot-ui] Confirmed for handle={}", self.handle);
-            PENDING_DIALOG.with(|cell| {
-                cell.set(Some(ScreenshotResponse {
-                    handle: self.handle.clone(),
-                    outcome: ScreenshotOutcome::Granted,
-                }));
+            ctx.dispatch(ScreenshotResponse {
+                handle: self.handle.clone(),
+                outcome: ScreenshotOutcome::Granted,
             });
             return;
         }
 
         if self.cancel_rect != utils::Rect::ZERO && interactivity.is_clicked(self.cancel_rect) {
             println!("[screenshot-ui] Cancelled for handle={}", self.handle);
-            PENDING_DIALOG.with(|cell| {
-                cell.set(Some(ScreenshotResponse {
-                    handle: self.handle.clone(),
-                    outcome: ScreenshotOutcome::Denied,
-                }));
+            ctx.dispatch(ScreenshotResponse {
+                handle: self.handle.clone(),
+                outcome: ScreenshotOutcome::Denied,
             });
             return;
         }

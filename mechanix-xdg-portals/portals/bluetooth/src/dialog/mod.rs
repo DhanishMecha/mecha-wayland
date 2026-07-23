@@ -9,7 +9,7 @@ use window_manager::{WindowId, WindowKind, WindowManager, WindowSettings};
 pub use dialog::BluetoothDialogUi;
 pub use types::DialogArgs;
 
-// --- Coordinator module ------------------------------------------------------
+// Coordinator module
 
 /// Mount this on the `WindowManager` state slice (exactly like
 /// `filechooser_ui_module`).
@@ -42,7 +42,7 @@ where
                         WindowSettings {
                             width: 540,
                             height: 620,
-                            clear_color: window_manager::Color::rgb(0.06, 0.06, 0.08),
+                            clear_color: window_manager::Color::rgba(0.0, 0.0, 0.0, 0.0),
                             kind: WindowKind::Xdg { title },
                             touch_config: None,
                             gesture_config: None,
