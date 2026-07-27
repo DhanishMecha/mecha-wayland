@@ -7,6 +7,7 @@ use file_chooser::{filechooser_module, FileChooserBackend};
 use portal_core::{dbus_monitor_module, portal_host_module, DbusMonitor, PortalHost};
 use screencast::{screencast_module, ScreenCastBackend};
 use screenshot::{screenshot_module, ScreenshotBackend};
+use settings::{settings_module, SettingsBackend};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -25,6 +26,7 @@ pub struct AppRoot {
     access_backend: AccessBackend,
     screenshot_backend: ScreenshotBackend,
     screencast_backend: ScreenCastBackend,
+    settings_backend: SettingsBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -44,17 +46,19 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}",
+        "{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         screenshot::backend::ScreenshotIface::introspect(),
-        screencast::backend::ScreenCastIface::introspect()
+        screencast::backend::ScreenCastIface::introspect(),
+        settings::backend::SettingsIface::introspect()
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
     let access_backend = AccessBackend::new(session_proxy.clone());
     let screenshot_backend = ScreenshotBackend::new(session_proxy.clone());
     let screencast_backend = ScreenCastBackend::new(session_proxy.clone());
+    let settings_backend = SettingsBackend::new(session_proxy.clone(), ring.proxy());
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
 
     let app_root = AppRoot {
@@ -70,6 +74,7 @@ fn main() {
         access_backend,
         screenshot_backend,
         screencast_backend,
+        settings_backend,
     };
 
     let mut app = App::new(app_root)
@@ -85,7 +90,8 @@ fn main() {
         .mount(bluetooth_module())
         .mount(access_module())
         .mount(screenshot_module())
-        .mount(screencast_module());
+        .mount(screencast_module())
+        .mount(settings_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);
