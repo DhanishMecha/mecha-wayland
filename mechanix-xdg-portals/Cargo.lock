@@ -875,6 +875,7 @@ dependencies = [
  "portal-core",
  "screencast",
  "screenshot",
+ "secret",
  "settings",
  "window-manager",
 ]
@@ -1212,6 +1213,19 @@ dependencies = [
  "ui",
  "utils",
  "window-manager",
+ "zbus",
+]
+
+[[package]]
+name = "secret"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "dbus",
+ "libc",
+ "portal-core",
+ "serde",
+ "toml",
  "zbus",
 ]
 

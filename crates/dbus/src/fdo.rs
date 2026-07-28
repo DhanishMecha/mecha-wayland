@@ -221,7 +221,7 @@ pub enum PropReply {
     Invalid(String),
 }
 
-/// Serve `org.freedesktop.DBus.Properties` (`Get`/`GetAll`/`Set`) for 
+/// Serve `org.freedesktop.DBus.Properties` (`Get`/`GetAll`/`Set`) for
 /// an interface declaring the properties
 pub fn route_properties<B: Bus>(
     proxy: &DbusProxy<B>,
@@ -233,15 +233,14 @@ pub fn route_properties<B: Bus>(
     if let Some(Ok(call)) = IncomingCall::<PropertiesGet>::try_from(msg) {
         let (req_iface, prop) = &call.args;
         if req_iface != iface {
-            call.error(proxy, ERR_UNKNOWN_INTERFACE, "no such interface");
-        } else {
-            match f(PropAccess::Get(prop)) {
-                PropReply::Value(v) => {
-                    call.respond(proxy, &v);
-                }
-                _ => {
-                    call.error(proxy, ERR_UNKNOWN_PROPERTY, "no such property");
-                }
+            return false;
+        }
+        match f(PropAccess::Get(prop)) {
+            PropReply::Value(v) => {
+                call.respond(proxy, &v);
+            }
+            _ => {
+                call.error(proxy, ERR_UNKNOWN_PROPERTY, "no such property");
             }
         }
         return true;
@@ -249,36 +248,34 @@ pub fn route_properties<B: Bus>(
     if let Some(Ok(call)) = IncomingCall::<PropertiesGetAll>::try_from(msg) {
         let (req_iface,) = &call.args;
         if req_iface != iface {
-            call.error(proxy, ERR_UNKNOWN_INTERFACE, "no such interface");
-        } else {
-            let mut all = std::collections::HashMap::new();
-            for name in names {
-                if let PropReply::Value(v) = f(PropAccess::Get(name)) {
-                    all.insert(name.to_string(), v);
-                }
-            }
-            call.respond(proxy, &all);
+            return false;
         }
+        let mut all = std::collections::HashMap::new();
+        for name in names {
+            if let PropReply::Value(v) = f(PropAccess::Get(name)) {
+                all.insert(name.to_string(), v);
+            }
+        }
+        call.respond(proxy, &all);
         return true;
     }
     if let Some(Ok(call)) = IncomingCall::<PropertiesSet>::try_from(msg) {
         let (req_iface, prop, value) = &call.args;
         if req_iface != iface {
-            call.error(proxy, ERR_UNKNOWN_INTERFACE, "no such interface");
-        } else {
-            match f(PropAccess::Set(prop, value)) {
-                PropReply::Set => {
-                    call.respond(proxy, &());
-                }
-                PropReply::ReadOnly => {
-                    call.error(proxy, ERR_PROPERTY_READ_ONLY, "property is read-only");
-                }
-                PropReply::Invalid(reason) => {
-                    call.error(proxy, ERR_INVALID_ARGS, &reason);
-                }
-                _ => {
-                    call.error(proxy, ERR_UNKNOWN_PROPERTY, "no such property");
-                }
+            return false;
+        }
+        match f(PropAccess::Set(prop, value)) {
+            PropReply::Set => {
+                call.respond(proxy, &());
+            }
+            PropReply::ReadOnly => {
+                call.error(proxy, ERR_PROPERTY_READ_ONLY, "property is read-only");
+            }
+            PropReply::Invalid(reason) => {
+                call.error(proxy, ERR_INVALID_ARGS, &reason);
+            }
+            _ => {
+                call.error(proxy, ERR_UNKNOWN_PROPERTY, "no such property");
             }
         }
         return true;
