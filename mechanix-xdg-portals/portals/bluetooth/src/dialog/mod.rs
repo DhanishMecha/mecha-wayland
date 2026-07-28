@@ -42,7 +42,7 @@ where
                         WindowSettings {
                             width: 540,
                             height: 620,
-                            clear_color: window_manager::Color::rgba(0.0, 0.0, 0.0, 0.0),
+                            clear_color: window_manager::Color::TRANSPARENT,
                             kind: WindowKind::Xdg { title },
                             touch_config: None,
                             gesture_config: None,

@@ -8,6 +8,7 @@ members = [
     "portals/screenshot",
     "portals/screencast",
     "portals/settings",
+    "portals/notification",
 ]
 
 [workspace.dependencies]
@@ -40,4 +41,5 @@ access = { path = "portals/access" }
 screenshot = { path = "portals/screenshot" }
 screencast = { path = "portals/screencast" }
 settings = { path = "portals/settings" }
+notification = { path = "portals/notification" }
 

@@ -8,6 +8,7 @@ use portal_core::{dbus_monitor_module, portal_host_module, DbusMonitor, PortalHo
 use screencast::{screencast_module, ScreenCastBackend};
 use screenshot::{screenshot_module, ScreenshotBackend};
 use settings::{settings_module, SettingsBackend};
+use notification::{notification_module, NotificationBackend};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -27,6 +28,7 @@ pub struct AppRoot {
     screenshot_backend: ScreenshotBackend,
     screencast_backend: ScreenCastBackend,
     settings_backend: SettingsBackend,
+    notification_backend: NotificationBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -46,12 +48,13 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}",
+        "{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         screenshot::backend::ScreenshotIface::introspect(),
         screencast::backend::ScreenCastIface::introspect(),
-        settings::backend::SettingsIface::introspect()
+        settings::backend::SettingsIface::introspect(),
+        notification::backend::NotificationIface::introspect()
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -59,6 +62,7 @@ fn main() {
     let screenshot_backend = ScreenshotBackend::new(session_proxy.clone());
     let screencast_backend = ScreenCastBackend::new(session_proxy.clone());
     let settings_backend = SettingsBackend::new(session_proxy.clone(), ring.proxy());
+    let notification_backend = NotificationBackend::new(session_proxy.clone());
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
 
     let app_root = AppRoot {
@@ -75,6 +79,7 @@ fn main() {
         screenshot_backend,
         screencast_backend,
         settings_backend,
+        notification_backend,
     };
 
     let mut app = App::new(app_root)
@@ -91,7 +96,8 @@ fn main() {
         .mount(access_module())
         .mount(screenshot_module())
         .mount(screencast_module())
-        .mount(settings_module());
+        .mount(settings_module())
+        .mount(notification_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);

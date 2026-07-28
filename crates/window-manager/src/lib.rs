@@ -74,6 +74,10 @@ impl WindowManager {
         }
     }
 
+    pub fn has_layer_shell(&self) -> bool {
+        self.globals.layer_shell.is_some()
+    }
+
     pub fn start(&mut self) {
         self.renderer.init_command_queue::<ClearColor>();
         self.renderer.init_command_queue::<DrawRect>();
