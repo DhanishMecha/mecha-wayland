@@ -39,6 +39,7 @@ impl AppChooserBackend {
         let Some(raw) = self.pending.remove(handle) else {
             return;
         };
+        // TODO: handling with the default configuration of app choices (e.g. updating system MIME associations in mimeapps.list)
         let (response, results) = match outcome {
             AppChooserOutcome::Chosen(ref app_id) => (
                 RESPONSE_SUCCESS,
@@ -119,8 +120,9 @@ pub fn app_chooser_backend_module<S>() -> impl RegisteredModule<AppChooserBacken
                 // Request.Close → cancel.
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
                     if let Some(handle) = &call.path {
+                        // Always respond to Close() so the caller never hangs.
+                        call.respond(&s.proxy, &());
                         if s.pending.contains_key(handle) {
-                            call.respond(&s.proxy, &());
                             let handle = handle.clone();
                             s.finish_dialog(&handle, AppChooserOutcome::Cancelled);
                             return Some(AppChooserRequest::Close { handle });

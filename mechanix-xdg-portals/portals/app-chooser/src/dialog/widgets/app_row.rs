@@ -11,7 +11,7 @@ pub struct AppRow {
     pub app_id: Option<String>,
     pub is_selected: bool,
     #[widget(child)]
-    pub div: Div<(Text, Text)>,
+    pub div: Div<(Text,)>,
 }
 
 impl AppRow {
@@ -30,18 +30,6 @@ impl AppRow {
             },
             ..Default::default()
         };
-
-        let mut icon_text = Text::new(Style {
-            min_size: Size {
-                width: length(28.0_f32),
-                height: auto(),
-            },
-            ..Default::default()
-        });
-        icon_text.font = Some(font);
-        icon_text.text = "◻ ".to_string();
-        icon_text.color = Color::rgb(0.4, 0.65, 1.0);
-        icon_text.z = 0.95;
 
         let mut name_text = Text::new(Style::default());
         name_text.font = Some(font);
@@ -63,14 +51,10 @@ impl AppRow {
                 top: length(0.0_f32),
                 bottom: length(0.0_f32),
             },
-            gap: Size {
-                width: length(10.0_f32),
-                height: length(0.0_f32),
-            },
             ..Default::default()
         };
 
-        let mut div = Div::new(div_style, (icon_text, name_text));
+        let mut div = Div::new(div_style, (name_text,));
         div.color = Color::rgb(0.05, 0.05, 0.07);
         div.border_radius = 8.0;
         div.border_thickness = 1.0;
@@ -107,23 +91,18 @@ impl AppRow {
                 })
                 .unwrap_or_else(|| id.clone());
 
-            self.div.children.1.set_text(tree, display_name);
+            self.div.children.0.set_text(tree, display_name);
 
             if is_selected {
                 self.div.color = Color::rgb(0.07, 0.28, 0.65);
                 self.div.border_color = Color::rgb(0.15, 0.50, 1.0);
-                self.div.children.0.text = "◼ ".to_string();
-                self.div.children.0.color = Color::rgb(0.35, 0.75, 1.0);
             } else {
                 self.div.color = Color::rgb(0.05, 0.05, 0.07);
                 self.div.border_color = Color::rgb(0.10, 0.10, 0.13);
-                self.div.children.0.text = "◻ ".to_string();
-                self.div.children.0.color = Color::rgb(0.40, 0.65, 1.0);
             }
         } else {
             style.display = Display::None;
             self.div.children.0.set_text(tree, String::new());
-            self.div.children.1.set_text(tree, String::new());
         }
         self.set_style(tree, style);
     }

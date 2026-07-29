@@ -118,8 +118,8 @@ pub fn screenshot_backend_module<S>() -> impl RegisteredModule<ScreenshotBackend
                 // Request.Close()
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
                     if let Some(handle) = &call.path {
+                        call.respond(&s.proxy, &());
                         if s.pending.contains_key(handle) {
-                            call.respond(&s.proxy, &());
                             let h = handle.clone();
                             s.finish(&h, ScreenshotOutcome::Denied);
                             return Some(ScreenshotRequest::Close { handle: h });

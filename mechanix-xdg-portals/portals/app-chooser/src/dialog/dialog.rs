@@ -1,6 +1,7 @@
 use crate::backend::{AppChooserOutcome, AppChooserResponse, RequestHandle};
 use assets::BakedFont;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use taffy::prelude::*;
 use ui::widgets::{Div, Text};
@@ -11,8 +12,6 @@ use portal_core::atlas;
 use portal_core::widgets::Button;
 
 use super::widgets::{AppRow, AppRows};
-
-
 
 // Widget tree type aliases
 
@@ -36,8 +35,8 @@ pub struct AppChooserDialogUi {
     row_rects: Vec<(u64, utils::Rect, usize)>, // (node_id, rect, choice_index)
     cancel_id: Option<u64>,
     open_id: Option<u64>,
-    /// Shared channel for live choice updates pushed from the UI coordinator.
-    pending_choice_update: Rc<RefCell<Option<Vec<String>>>>,
+    /// Shared map of pending choice updates keyed by request handle.
+    pending_updates: Rc<RefCell<HashMap<RequestHandle, Vec<String>>>>,
 }
 
 impl AppChooserDialogUi {
@@ -49,7 +48,7 @@ impl AppChooserDialogUi {
         content_type: Option<String>,
         uri: Option<String>,
         filename: Option<String>,
-        pending_choice_update: Rc<RefCell<Option<Vec<String>>>>,
+        pending_updates: Rc<RefCell<HashMap<RequestHandle, Vec<String>>>>,
     ) -> Self {
         let selected_idx = last_choice
             .as_deref()
@@ -82,7 +81,7 @@ impl AppChooserDialogUi {
             row_rects: Vec::new(),
             cancel_id: None,
             open_id: None,
-            pending_choice_update,
+            pending_updates,
         }
     }
 
@@ -141,7 +140,7 @@ impl WidgetList for AppChooserDialogUi {
         let tree = ctx.tree();
 
         // Apply any pending choice update pushed from the UI coordinator.
-        let new_choices = self.pending_choice_update.borrow_mut().take();
+        let new_choices = self.pending_updates.borrow_mut().remove(&self.handle);
         if let Some(new_choices) = new_choices {
             println!(
                 "[app-chooser-ui] UpdateChoices applied: {} choices.",

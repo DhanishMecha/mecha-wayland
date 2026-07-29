@@ -108,8 +108,8 @@ pub fn filechooser_module<S>() -> impl RegisteredModule<FileChooserBackend, S> {
                 // Request.Close -> cancel
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
                     if let Some(handle) = &call.path {
+                        call.respond(&s.proxy, &());
                         if s.pending.contains_key(handle) {
-                            call.respond(&s.proxy, &());
                             let handle = handle.clone();
                             s.finish_dialog(&handle, FileChooserOutcome::Cancelled);
                             return Some(FileChooserRequest::Close { handle });
