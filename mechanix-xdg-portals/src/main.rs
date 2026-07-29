@@ -1,6 +1,7 @@
 use access::{access_module, AccessBackend};
 use app::prelude::*;
 use app::RegisteredModule;
+use app_chooser::{app_chooser_module, AppChooserBackend};
 use bluetooth::{bluetooth_module, BluetoothBackend};
 use dbus::{module as dbus_module, DbusConnection, SessionBus, SystemBus};
 use file_chooser::{filechooser_module, FileChooserBackend};
@@ -26,6 +27,7 @@ pub struct AppRoot {
     backend: FileChooserBackend,
     bt_backend: BluetoothBackend,
     access_backend: AccessBackend,
+    app_chooser_backend: AppChooserBackend,
     screenshot_backend: ScreenshotBackend,
     screencast_backend: ScreenCastBackend,
     settings_backend: SettingsBackend,
@@ -50,9 +52,10 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
+        app_chooser::backend::AppChooserIface::introspect(),
         screenshot::backend::ScreenshotIface::introspect(),
         screencast::backend::ScreenCastIface::introspect(),
         settings::backend::SettingsIface::introspect(),
@@ -62,6 +65,7 @@ fn main() {
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
     let access_backend = AccessBackend::new(session_proxy.clone());
+    let app_chooser_backend = AppChooserBackend::new(session_proxy.clone());
     let screenshot_backend = ScreenshotBackend::new(session_proxy.clone());
     let screencast_backend = ScreenCastBackend::new(session_proxy.clone());
     let settings_backend = SettingsBackend::new(session_proxy.clone(), ring.proxy());
@@ -80,6 +84,7 @@ fn main() {
         backend,
         bt_backend,
         access_backend,
+        app_chooser_backend,
         screenshot_backend,
         screencast_backend,
         settings_backend,
@@ -99,6 +104,7 @@ fn main() {
         .mount(filechooser_module())
         .mount(bluetooth_module())
         .mount(access_module())
+        .mount(app_chooser_module())
         .mount(screenshot_module())
         .mount(screencast_module())
         .mount(settings_module())

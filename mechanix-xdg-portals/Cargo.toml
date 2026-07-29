@@ -5,6 +5,7 @@ members = [
     "portals/bluetooth",
     "portals/file-chooser",
     "portals/access",
+    "portals/app-chooser",
     "portals/screenshot",
     "portals/screencast",
     "portals/settings",
@@ -39,6 +40,7 @@ portal-core = { path = "portal-core" }
 bluetooth = { path = "portals/bluetooth" }
 file-chooser = { path = "portals/file-chooser" }
 access = { path = "portals/access" }
+app-chooser = { path = "portals/app-chooser" }
 screenshot = { path = "portals/screenshot" }
 screencast = { path = "portals/screencast" }
 settings = { path = "portals/settings" }

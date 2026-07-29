@@ -46,6 +46,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-chooser"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
+]
+
+[[package]]
 name = "app-macro"
 version = "0.1.0"
 dependencies = [
@@ -867,6 +884,7 @@ version = "0.1.0"
 dependencies = [
  "access",
  "app",
+ "app-chooser",
  "bluetooth",
  "dbus",
  "file-chooser",
