@@ -1,5 +1,7 @@
 use crate::backend::{AppChooserOutcome, AppChooserResponse, RequestHandle};
 use assets::BakedFont;
+use std::cell::RefCell;
+use std::rc::Rc;
 use taffy::prelude::*;
 use ui::widgets::{Div, Text};
 use ui::{Point, RenderCommand, Widget, WidgetList, WidgetTree};
@@ -34,6 +36,8 @@ pub struct AppChooserDialogUi {
     row_rects: Vec<(u64, utils::Rect, usize)>, // (node_id, rect, choice_index)
     cancel_id: Option<u64>,
     open_id: Option<u64>,
+    /// Shared channel for live choice updates pushed from the UI coordinator.
+    pending_choice_update: Rc<RefCell<Option<Vec<String>>>>,
 }
 
 impl AppChooserDialogUi {
@@ -45,6 +49,7 @@ impl AppChooserDialogUi {
         content_type: Option<String>,
         uri: Option<String>,
         filename: Option<String>,
+        pending_choice_update: Rc<RefCell<Option<Vec<String>>>>,
     ) -> Self {
         let selected_idx = last_choice
             .as_deref()
@@ -77,6 +82,7 @@ impl AppChooserDialogUi {
             row_rects: Vec::new(),
             cancel_id: None,
             open_id: None,
+            pending_choice_update,
         }
     }
 
@@ -134,6 +140,22 @@ impl WidgetList for AppChooserDialogUi {
         let interactivity = ctx.interactivity();
         let tree = ctx.tree();
 
+        // Apply any pending choice update pushed from the UI coordinator.
+        let new_choices = self.pending_choice_update.borrow_mut().take();
+        if let Some(new_choices) = new_choices {
+            println!(
+                "[app-chooser-ui] UpdateChoices applied: {} choices.",
+                new_choices.len()
+            );
+            // Keep selected_idx valid: if the previously selected app is no
+            // longer in the new list, clear the selection.
+            self.selected_idx = self
+                .selected_idx
+                .and_then(|i| self.choices.get(i))
+                .and_then(|prev| new_choices.iter().position(|c| c == prev));
+            self.choices = new_choices;
+            self.populate_rows(tree);
+        }
         // Open / confirm button
         if self.open_rect != utils::Rect::ZERO && interactivity.is_clicked(self.open_rect) {
             let chosen = self.selected_idx.and_then(|i| self.choices.get(i)).cloned();

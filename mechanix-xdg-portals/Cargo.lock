@@ -1243,7 +1243,6 @@ dependencies = [
  "libc",
  "portal-core",
  "serde",
- "toml",
  "zbus",
 ]
 
