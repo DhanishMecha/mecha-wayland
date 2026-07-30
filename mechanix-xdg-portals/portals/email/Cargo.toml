@@ -1,0 +1,11 @@
+[package]
+name = "email"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+app = { workspace = true }
+portal-core = { path = "../../portal-core" }
+dbus = { workspace = true }
+zbus = { workspace = true }
+serde = { workspace = true }

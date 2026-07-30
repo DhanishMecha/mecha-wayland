@@ -395,6 +395,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0aafbcdb8afc29c1a7ee5fbe53b5d62f4565b35a042a662ca9fecd0b54dae6f4"
 
 [[package]]
+name = "email"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "dbus",
+ "portal-core",
+ "serde",
+ "zbus",
+]
+
+[[package]]
 name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -887,6 +898,7 @@ dependencies = [
  "app-chooser",
  "bluetooth",
  "dbus",
+ "email",
  "file-chooser",
  "io-ring",
  "notification",
