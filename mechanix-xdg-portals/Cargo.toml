@@ -5,6 +5,7 @@ members = [
     "portals/bluetooth",
     "portals/file-chooser",
     "portals/access",
+    "portals/account",
     "portals/app-chooser",
     "portals/screenshot",
     "portals/screencast",
@@ -12,6 +13,7 @@ members = [
     "portals/notification",
     "portals/secret",
     "portals/email",
+    "portals/inhibit",
 ]
 
 [workspace.dependencies]
@@ -41,6 +43,7 @@ portal-core = { path = "portal-core" }
 bluetooth = { path = "portals/bluetooth" }
 file-chooser = { path = "portals/file-chooser" }
 access = { path = "portals/access" }
+account = { path = "portals/account" }
 app-chooser = { path = "portals/app-chooser" }
 screenshot = { path = "portals/screenshot" }
 screencast = { path = "portals/screencast" }
@@ -48,4 +51,5 @@ settings = { path = "portals/settings" }
 notification = { path = "portals/notification" }
 secret = { path = "portals/secret" }
 email = { path = "portals/email" }
+inhibit = { path = "portals/inhibit" }
 

@@ -20,6 +20,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "account"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "libc",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -795,6 +813,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "inhibit"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "dbus",
+ "portal-core",
+ "serde",
+ "zbus",
+]
+
+[[package]]
 name = "interactivity"
 version = "0.1.0"
 dependencies = [
@@ -894,12 +923,14 @@ name = "mechanix-xdg-portals"
 version = "0.1.0"
 dependencies = [
  "access",
+ "account",
  "app",
  "app-chooser",
  "bluetooth",
  "dbus",
  "email",
  "file-chooser",
+ "inhibit",
  "io-ring",
  "notification",
  "portal-core",
