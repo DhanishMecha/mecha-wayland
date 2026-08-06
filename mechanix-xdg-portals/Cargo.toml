@@ -14,6 +14,7 @@ members = [
     "portals/secret",
     "portals/email",
     "portals/inhibit",
+    "portals/polkit-agent",
 ]
 
 [workspace.dependencies]
@@ -52,4 +53,5 @@ notification = { path = "portals/notification" }
 secret = { path = "portals/secret" }
 email = { path = "portals/email" }
 inhibit = { path = "portals/inhibit" }
+polkit-agent = { path = "portals/polkit-agent" }
 

@@ -70,3 +70,10 @@ dbus_signal!(pub UnlockSession {
     args: (),
 });
 
+dbus_signal!(pub PrepareForShutdown {
+    iface: "org.freedesktop.login1.Manager",
+    member: "PrepareForShutdown",
+    args: (bool,),
+});
+
+

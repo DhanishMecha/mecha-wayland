@@ -1,0 +1,20 @@
+[package]
+name = "polkit-agent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+app = { workspace = true }
+portal-core = { path = "../../portal-core" }
+dbus = { workspace = true }
+zbus = { workspace = true }
+serde = { workspace = true }
+window-manager = { workspace = true }
+ui = { workspace = true }
+utils = { workspace = true }
+interactivity = { workspace = true }
+taffy = { workspace = true }
+assets = { workspace = true }
+libc = "0.2"
+zeroize = { version = "1.7", features = ["zeroize_derive"] }
+frunk = "0.4.4"

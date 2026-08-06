@@ -1,19 +1,20 @@
-use access::{access_module, AccessBackend};
-use account::{account_module, AccountBackend};
-use app::prelude::*;
+use access::{AccessBackend, access_module};
+use account::{AccountBackend, account_module};
 use app::RegisteredModule;
-use app_chooser::{app_chooser_module, AppChooserBackend};
-use bluetooth::{bluetooth_module, BluetoothBackend};
-use dbus::{module as dbus_module, DbusConnection, SessionBus, SystemBus};
-use file_chooser::{filechooser_module, FileChooserBackend};
-use portal_core::{dbus_monitor_module, portal_host_module, DbusMonitor, PortalHost};
-use screencast::{screencast_module, ScreenCastBackend};
-use screenshot::{screenshot_module, ScreenshotBackend};
-use settings::{settings_module, SettingsBackend};
-use notification::{notification_module, NotificationBackend};
-use secret::{secret_module, SecretBackend};
-use email::{email_module, EmailBackend};
-use inhibit::{inhibit_module, InhibitBackend};
+use app::prelude::*;
+use app_chooser::{AppChooserBackend, app_chooser_module};
+use bluetooth::{BluetoothBackend, bluetooth_module};
+use dbus::{DbusConnection, SessionBus, SystemBus, module as dbus_module};
+use email::{EmailBackend, email_module};
+use file_chooser::{FileChooserBackend, filechooser_module};
+use inhibit::{InhibitBackend, inhibit_module};
+use notification::{NotificationBackend, notification_module};
+use polkit_agent::{AuthenticationAgentIface, PolkitAgentBackend, polkit_agent_module};
+use portal_core::{DbusMonitor, PortalHost, dbus_monitor_module, portal_host_module};
+use screencast::{ScreenCastBackend, screencast_module};
+use screenshot::{ScreenshotBackend, screenshot_module};
+use secret::{SecretBackend, secret_module};
+use settings::{SettingsBackend, settings_module};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -39,6 +40,7 @@ pub struct AppRoot {
     secret_backend: SecretBackend,
     email_backend: EmailBackend,
     inhibit_backend: InhibitBackend,
+    polkit_agent_backend: PolkitAgentBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -58,7 +60,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -69,7 +71,8 @@ fn main() {
         secret::backend::SecretIface::introspect(),
         email::backend::EmailIface::introspect(),
         inhibit::backend::InhibitIface::introspect(),
-        account::backend::AccountIface::introspect()
+        account::backend::AccountIface::introspect(),
+        AuthenticationAgentIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -83,6 +86,7 @@ fn main() {
     let secret_backend = SecretBackend::new(session_proxy.clone());
     let email_backend = EmailBackend::new(session_proxy.clone());
     let inhibit_backend = InhibitBackend::new(session_proxy.clone(), dbus_system.proxy());
+    let polkit_agent_backend = PolkitAgentBackend::new(session_proxy.clone(), dbus_system.proxy());
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
 
     let app_root = AppRoot {
@@ -105,6 +109,7 @@ fn main() {
         secret_backend,
         email_backend,
         inhibit_backend,
+        polkit_agent_backend,
     };
 
     let mut app = App::new(app_root)
@@ -127,7 +132,8 @@ fn main() {
         .mount(notification_module())
         .mount(secret_module())
         .mount(email_module())
-        .mount(inhibit_module());
+        .mount(inhibit_module())
+        .mount(polkit_agent_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);
@@ -136,4 +142,3 @@ fn main() {
         app.dispatch(&app::Poll);
     }
 }
-

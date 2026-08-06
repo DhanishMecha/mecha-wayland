@@ -1,16 +1,19 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use app::{prelude::*, RegisteredModule};
-use dbus::{fdo, variant, DbusEvent, DbusMessage, DbusProxy, IncomingCall, SessionBus, SystemBus, Pending, SignalMatch};
-use portal_core::{RequestClose, PORTAL_PATH, RESPONSE_SUCCESS};
+use app::{RegisteredModule, prelude::*};
+use dbus::{
+    DbusEvent, DbusMessage, DbusProxy, IncomingCall, Pending, SessionBus, SignalMatch, SystemBus,
+    fdo, variant,
+};
+use portal_core::{PORTAL_PATH, RESPONSE_SUCCESS, RequestClose};
 use zbus::message::Message;
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 
 use super::helpers::{describe_flags, parse_inhibit_options};
 use super::interface::{
-    CreateMonitor, Inhibit, LogindInhibit, QueryEndResponse, StateChanged, INHIBIT_IFACE, INHIBIT_VERSION,
-    PrepareForSleep, LockSession, UnlockSession, SimulateStateChanged,
+    CreateMonitor, INHIBIT_IFACE, INHIBIT_VERSION, Inhibit, LockSession, LogindInhibit,
+    PrepareForSleep, PrepareForShutdown, QueryEndResponse, SimulateStateChanged, StateChanged, UnlockSession,
 };
 use super::types::{InhibitEntry, MonitorSession, RequestHandle, SessionHandle, SessionState};
 
@@ -43,6 +46,7 @@ pub struct InhibitBackend {
 impl InhibitBackend {
     pub fn new(proxy: DbusProxy<SessionBus>, system_proxy: DbusProxy<SystemBus>) -> Self {
         system_proxy.subscribe::<PrepareForSleep>();
+        system_proxy.subscribe::<PrepareForShutdown>();
         system_proxy.subscribe::<LockSession>();
         system_proxy.subscribe::<UnlockSession>();
 
@@ -81,9 +85,7 @@ impl InhibitBackend {
     /// Register a new monitoring session.
     fn add_monitor(&mut self, session_handle: &OwnedObjectPath, app_id: &str) {
         let key = session_handle.as_str().to_string();
-        println!(
-            "[inhibit-backend] CreateMonitor: session={key} app_id={app_id}"
-        );
+        println!("[inhibit-backend] CreateMonitor: session={key} app_id={app_id}");
         self.monitors.insert(
             key.clone(),
             MonitorSession {
@@ -96,9 +98,7 @@ impl InhibitBackend {
     /// Remove a monitoring session (e.g. when its Session.Close is called).
     fn remove_monitor(&mut self, session_handle: &str) {
         if self.monitors.remove(session_handle).is_some() {
-            println!(
-                "[inhibit-backend] Monitor session removed: session={session_handle}"
-            );
+            println!("[inhibit-backend] Monitor session removed: session={session_handle}");
         }
     }
 
@@ -119,10 +119,8 @@ impl InhibitBackend {
             let path = session_handle.as_str();
             // The signal arg is an OwnedObjectPath — parse from the session handle string.
             if let Ok(obj_path) = OwnedObjectPath::try_from(session_handle.clone()) {
-                self.proxy.emit::<StateChanged>(
-                    PORTAL_PATH,
-                    &(obj_path, vardict.clone()),
-                );
+                self.proxy
+                    .emit::<StateChanged>(PORTAL_PATH, &(obj_path, vardict.clone()));
                 println!(
                     "[inhibit-backend] StateChanged emitted: session={path} state={:?}",
                     state
@@ -141,7 +139,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     _ => {}
                 }
 
-                // ── Inhibit ────────────────────────────────────────────────────────
+                // Inhibit
                 // Long-lived request. The reply is deferred until Request.Close.
                 // Per spec, no out-args are returned.
                 if let Some(Ok(call)) = IncomingCall::<Inhibit>::try_from(&ev.msg) {
@@ -197,7 +195,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     return None;
                 }
 
-                // ── CreateMonitor ──────────────────────────────────────────────────
+                // CreateMonitor 
                 // Immediately returns response=0 (success). While the session lives,
                 // StateChanged signals will be emitted to it.
                 if let Some(Ok(call)) = IncomingCall::<CreateMonitor>::try_from(&ev.msg) {
@@ -216,9 +214,10 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     return None;
                 }
 
-                // ── QueryEndResponse ───────────────────────────────────────────────
+                //  QueryEndResponse 
                 // Application acknowledges a StateChanged with session-state=QueryEnd.
                 // Must arrive within ~1 second of the signal.
+                // TODO: Track application acknowledgement and notify the session manager/systemd before proceeding with session end.
                 if let Some(Ok(call)) = IncomingCall::<QueryEndResponse>::try_from(&ev.msg) {
                     let (session_handle,) = &call.args;
                     println!(
@@ -229,7 +228,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     return None;
                 }
 
-                // ── SimulateStateChanged ───────────────────────────────────────────
+                //  SimulateStateChanged 
                 // Helper for manual simulation/testing of state changes.
                 if let Some(Ok(call)) = IncomingCall::<SimulateStateChanged>::try_from(&ev.msg) {
                     let (state_u32, screensaver_active) = &call.args;
@@ -249,7 +248,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     return None;
                 }
 
-                // ── Request.Close ──────────────────────────────────────────────────
+                //  Request.Close 
                 // Ends either an active inhibition (by request handle) or a monitor
                 // session (by session handle). Both share this mechanism.
                 if let Some(Ok(call)) = IncomingCall::<RequestClose>::try_from(&ev.msg) {
@@ -272,7 +271,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     return None;
                 }
 
-                // ── Properties ─────────────────────────────────────────────────────
+                //  Properties 
                 if fdo::route_properties(
                     &s.proxy,
                     &ev.msg,
@@ -289,7 +288,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     return None;
                 }
 
-                // ── Fallback ───────────────────────────────────────────────────────
+                //  Fallback 
                 if let DbusMessage::Call(m) = &ev.msg {
                     if m.header().path().is_some_and(|p| p.as_str() == PORTAL_PATH)
                         && m.header()
@@ -321,6 +320,7 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     DbusMessage::Reconnected => {
                         println!("[inhibit-backend] System bus reconnected");
                         s.system_proxy.subscribe::<PrepareForSleep>();
+                        s.system_proxy.subscribe::<PrepareForShutdown>();
                         s.system_proxy.subscribe::<LockSession>();
                         s.system_proxy.subscribe::<UnlockSession>();
                         return None;
@@ -347,6 +347,18 @@ pub fn inhibit_backend_module<S>() -> impl RegisteredModule<InhibitBackend, S> {
                     let (sleep_active,) = sig.args;
                     println!("[inhibit-backend] Received logind PrepareForSleep signal (active={sleep_active})");
                     if sleep_active {
+                        s.broadcast_state_changed(SessionState::QueryEnd, true);
+                    } else {
+                        s.broadcast_state_changed(SessionState::Running, false);
+                    }
+                    return None;
+                }
+
+                // Handle systemd-logind PrepareForShutdown signal
+                if let Some(Ok(sig)) = SignalMatch::<PrepareForShutdown>::try_from(&ev.msg) {
+                    let (shutdown_active,) = sig.args;
+                    println!("[inhibit-backend] Received logind PrepareForShutdown signal (active={shutdown_active})");
+                    if shutdown_active {
                         s.broadcast_state_changed(SessionState::QueryEnd, true);
                     } else {
                         s.broadcast_state_changed(SessionState::Running, false);
