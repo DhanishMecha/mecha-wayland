@@ -29,9 +29,9 @@ where
 
                 let id = wm.spawn_window(
                     WindowSettings {
-                        width: 480,
-                        height: 340,
-                        clear_color: window_manager::Color::rgb(0.08, 0.08, 0.1),
+                        width: 500,
+                        height: 380,
+                        clear_color: window_manager::Color::rgb(0.09, 0.10, 0.13),
                         kind: WindowKind::Xdg {
                             title: "Authentication Required".to_string(),
                         },

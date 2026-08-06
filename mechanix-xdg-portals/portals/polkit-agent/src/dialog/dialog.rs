@@ -11,7 +11,8 @@ use portal_core::widgets::Button;
 // ---------------------------------------------------------------------------
 // Type aliases for the widget tree
 // ---------------------------------------------------------------------------
-pub type HeaderDiv = Div<(Text, Text, Text)>;
+pub type IconBadgeDiv = Div<(Text,)>;
+pub type HeaderDiv = Div<(IconBadgeDiv, Text, Text)>;
 pub type ButtonRowDiv = Div<(Button, Button)>;
 pub type PasswordInputDiv = Div<(Text,)>;
 pub type BodySection = Div<(Text, Text, PasswordInputDiv)>;
@@ -210,15 +211,38 @@ fn make_root(
     let mut icon_text = Text::new(Style::default());
     icon_text.font = Some(font_24);
     icon_text.text = "🔐".to_string();
-    icon_text.color = Color::rgb(0.55, 0.75, 1.0);
+    icon_text.color = Color::rgb(0.38, 0.69, 1.0);
     icon_text.z = 0.95;
+
+    let icon_badge_style = Style {
+        display: Display::Flex,
+        justify_content: Some(JustifyContent::Center),
+        align_items: Some(AlignItems::Center),
+        size: Size {
+            width: length(48.0_f32),
+            height: length(48.0_f32),
+        },
+        margin: taffy::Rect {
+            left: auto(),
+            right: auto(),
+            top: length(0.0_f32),
+            bottom: length(8.0_f32),
+        },
+        ..Default::default()
+    };
+    let mut icon_badge = Div::new(icon_badge_style, (icon_text,));
+    icon_badge.color = Color::rgba(0.1, 0.45, 0.9, 0.15);
+    icon_badge.border_color = Color::rgba(0.25, 0.65, 1.0, 0.35);
+    icon_badge.border_radius = 24.0;
+    icon_badge.border_thickness = 1.5;
+    icon_badge.z = 0.9;
 
     let mut title_text = Text::new(Style {
         margin: taffy::Rect {
             left: length(0.0_f32),
             right: length(0.0_f32),
-            top: length(8.0_f32),
-            bottom: length(4.0_f32),
+            top: length(4.0_f32),
+            bottom: length(2.0_f32),
         },
         ..Default::default()
     });
@@ -230,7 +254,7 @@ fn make_root(
     let mut action_label = Text::new(Style::default());
     action_label.font = Some(font_16);
     action_label.text = format!("Action: {action_id}");
-    action_label.color = Color::rgb(0.55, 0.65, 0.85);
+    action_label.color = Color::rgb(0.68, 0.72, 0.83);
     action_label.z = 0.95;
 
     let header_style = Style {
@@ -245,12 +269,12 @@ fn make_root(
         padding: taffy::Rect {
             left: length(0.0_f32),
             right: length(0.0_f32),
-            top: length(16.0_f32),
-            bottom: length(16.0_f32),
+            top: length(8.0_f32),
+            bottom: length(8.0_f32),
         },
         ..Default::default()
     };
-    let header = Div::new(header_style, (icon_text, title_text, action_label));
+    let header = Div::new(header_style, (icon_badge, title_text, action_label));
 
     // ---- Body: message + "Authenticating as <user>" ----
     let mut message_text = Text::new(Style {
@@ -258,13 +282,13 @@ fn make_root(
             left: length(0.0_f32),
             right: length(0.0_f32),
             top: length(0.0_f32),
-            bottom: length(12.0_f32),
+            bottom: length(8.0_f32),
         },
         ..Default::default()
     });
     message_text.font = Some(font_16);
     message_text.text = message.to_string();
-    message_text.color = Color::rgb(0.8, 0.8, 0.88);
+    message_text.color = Color::rgb(0.85, 0.88, 0.92);
     message_text.z = 0.95;
 
     let mut user_label = Text::new(Style {
@@ -272,19 +296,19 @@ fn make_root(
             left: length(0.0_f32),
             right: length(0.0_f32),
             top: length(0.0_f32),
-            bottom: length(24.0_f32),
+            bottom: length(16.0_f32),
         },
         ..Default::default()
     });
     user_label.font = Some(font_16);
     user_label.text = format!("Authenticating as: {username}");
-    user_label.color = Color::rgb(0.55, 0.75, 0.55);
+    user_label.color = Color::rgb(0.95, 0.72, 0.38); // rich amber
     user_label.z = 0.95;
 
     let mut password_text = Text::new(Style {
         margin: taffy::Rect {
-            left: length(12.0_f32),
-            right: length(12.0_f32),
+            left: length(16.0_f32),
+            right: length(16.0_f32),
             top: length(0.0_f32),
             bottom: length(0.0_f32),
         },
@@ -292,7 +316,7 @@ fn make_root(
     });
     password_text.font = Some(font_16);
     password_text.text = "Password: ".to_string();
-    password_text.color = Color::rgb(0.85, 0.85, 0.9);
+    password_text.color = Color::rgb(0.55, 0.60, 0.75); // cool grey prefix
     password_text.z = 0.95;
 
     let input_container_style = Style {
@@ -301,20 +325,20 @@ fn make_root(
         align_items: Some(AlignItems::Center),
         size: Size {
             width: percent(1.0_f32),
-            height: length(44.0_f32),
+            height: length(48.0_f32),
         },
         margin: taffy::Rect {
             left: length(0.0_f32),
             right: length(0.0_f32),
             top: length(0.0_f32),
-            bottom: length(24.0_f32),
+            bottom: length(16.0_f32),
         },
         ..Default::default()
     };
     let mut password_input_container = Div::new(input_container_style, (password_text,));
-    password_input_container.color = Color::rgb(0.12, 0.12, 0.15);
-    password_input_container.border_color = Color::rgb(0.22, 0.22, 0.27);
-    password_input_container.border_radius = 8.0;
+    password_input_container.color = Color::rgb(0.05, 0.06, 0.08); // Obsidian deep dark input
+    password_input_container.border_color = Color::rgb(0.24, 0.30, 0.45); // cool electric blue border
+    password_input_container.border_radius = 10.0;
     password_input_container.border_thickness = 1.5;
     password_input_container.z = 0.9;
 
@@ -335,19 +359,19 @@ fn make_root(
 
     // ---- Buttons ----
     let mut cancel_btn = Button::new("Cancel");
-    cancel_btn.div.color = Color::rgb(0.12, 0.12, 0.15);
-    cancel_btn.div.border_radius = 10.0;
-    cancel_btn.div.border_color = Color::rgb(0.22, 0.22, 0.27);
+    cancel_btn.div.color = Color::rgb(0.14, 0.16, 0.20);
+    cancel_btn.div.border_radius = 12.0;
+    cancel_btn.div.border_color = Color::rgb(0.22, 0.25, 0.32);
     cancel_btn.div.border_thickness = 1.5;
     cancel_btn.div.z = 1.0;
     cancel_btn.div.children.font = Some(font_16);
-    cancel_btn.div.children.color = Color::rgb(0.85, 0.85, 0.9);
+    cancel_btn.div.children.color = Color::rgb(0.75, 0.78, 0.88);
     cancel_btn.div.children.z = 0.5;
 
     let mut auth_btn = Button::new("Authenticate");
-    auth_btn.div.color = Color::rgb(0.1, 0.45, 0.9);
-    auth_btn.div.border_radius = 10.0;
-    auth_btn.div.border_color = Color::rgb(0.15, 0.55, 1.0);
+    auth_btn.div.color = Color::rgb(0.12, 0.53, 0.90);
+    auth_btn.div.border_radius = 12.0;
+    auth_btn.div.border_color = Color::rgb(0.25, 0.65, 1.0);
     auth_btn.div.border_thickness = 1.5;
     auth_btn.div.z = 1.0;
     auth_btn.div.children.font = Some(font_16);
@@ -380,16 +404,16 @@ fn make_root(
         padding: taffy::Rect {
             left: length(24.0_f32),
             right: length(24.0_f32),
-            top: length(32.0_f32),
+            top: length(24.0_f32),
             bottom: length(24.0_f32),
         },
         ..Default::default()
     };
     let mut modal = Div::new(modal_style, (header, body, button_row));
-    modal.color = Color::rgb(0.07, 0.07, 0.09);
-    modal.border_color = Color::rgb(0.14, 0.14, 0.18);
-    modal.border_radius = 16.0;
-    modal.border_thickness = 1.0;
+    modal.color = Color::rgb(0.09, 0.10, 0.13); // Obsidian Slate
+    modal.border_color = Color::rgb(0.18, 0.20, 0.26); // Subtle metallic border
+    modal.border_radius = 20.0;
+    modal.border_thickness = 1.5;
     modal.z = 0.2;
 
     // ---- Full-screen dimmed backdrop ----
@@ -405,7 +429,7 @@ fn make_root(
         ..Default::default()
     };
     let mut root = Div::new(root_style, (modal,));
-    root.color = Color::rgba(0.0, 0.0, 0.0, 0.65);
+    root.color = Color::rgba(0.02, 0.02, 0.03, 0.82); // beautiful translucent dimming
     root.z = 0.1;
 
     root
