@@ -3,6 +3,7 @@ use account::{AccountBackend, account_module};
 use app::RegisteredModule;
 use app::prelude::*;
 use app_chooser::{AppChooserBackend, app_chooser_module};
+use background::{BackgroundBackend, background_module, backend::BackgroundIface};
 use bluetooth::{BluetoothBackend, bluetooth_module};
 use dbus::{DbusConnection, SessionBus, SystemBus, module as dbus_module};
 use email::{EmailBackend, email_module};
@@ -41,6 +42,7 @@ pub struct AppRoot {
     email_backend: EmailBackend,
     inhibit_backend: InhibitBackend,
     polkit_agent_backend: PolkitAgentBackend,
+    background_backend: BackgroundBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -60,7 +62,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -73,6 +75,7 @@ fn main() {
         inhibit::backend::InhibitIface::introspect(),
         account::backend::AccountIface::introspect(),
         AuthenticationAgentIface::introspect(),
+        BackgroundIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -88,6 +91,7 @@ fn main() {
     let inhibit_backend = InhibitBackend::new(session_proxy.clone(), dbus_system.proxy());
     let polkit_agent_backend = PolkitAgentBackend::new(session_proxy.clone(), dbus_system.proxy());
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
+    let background_backend = BackgroundBackend::new(session_proxy.clone());
 
     let app_root = AppRoot {
         ring,
@@ -110,6 +114,7 @@ fn main() {
         email_backend,
         inhibit_backend,
         polkit_agent_backend,
+        background_backend,
     };
 
     let mut app = App::new(app_root)
@@ -133,7 +138,8 @@ fn main() {
         .mount(secret_module())
         .mount(email_module())
         .mount(inhibit_module())
-        .mount(polkit_agent_module());
+        .mount(polkit_agent_module())
+        .mount(background_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);
