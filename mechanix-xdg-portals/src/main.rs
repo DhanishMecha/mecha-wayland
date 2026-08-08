@@ -6,6 +6,7 @@ use app_chooser::{AppChooserBackend, app_chooser_module};
 use background::{BackgroundBackend, background_module, backend::BackgroundIface};
 use bluetooth::{BluetoothBackend, bluetooth_module};
 use clipboard::{ClipboardBackend, clipboard_module, backend::ClipboardIface};
+use dynamic_launcher::{DynamicLauncherBackend, dynamic_launcher_module, backend::interface::DynamicLauncherIface};
 use dbus::{DbusConnection, SessionBus, SystemBus, module as dbus_module};
 use email::{EmailBackend, email_module};
 use file_chooser::{FileChooserBackend, filechooser_module};
@@ -45,6 +46,7 @@ pub struct AppRoot {
     polkit_agent_backend: PolkitAgentBackend,
     background_backend: BackgroundBackend,
     clipboard_backend: ClipboardBackend,
+    dynamic_launcher_backend: DynamicLauncherBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -64,7 +66,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -79,6 +81,7 @@ fn main() {
         AuthenticationAgentIface::introspect(),
         BackgroundIface::introspect(),
         ClipboardIface::introspect(),
+        DynamicLauncherIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -96,6 +99,7 @@ fn main() {
     let bt_backend = BluetoothBackend::new(dbus_system.proxy());
     let background_backend = BackgroundBackend::new(session_proxy.clone());
     let clipboard_backend = ClipboardBackend::new(session_proxy.clone());
+    let dynamic_launcher_backend = DynamicLauncherBackend::new(session_proxy.clone());
 
     let app_root = AppRoot {
         ring,
@@ -120,6 +124,7 @@ fn main() {
         polkit_agent_backend,
         background_backend,
         clipboard_backend,
+        dynamic_launcher_backend,
     };
 
     let mut app = App::new(app_root)
@@ -145,7 +150,8 @@ fn main() {
         .mount(inhibit_module())
         .mount(polkit_agent_module())
         .mount(background_module())
-        .mount(clipboard_module());
+        .mount(clipboard_module())
+        .mount(dynamic_launcher_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);
