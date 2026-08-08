@@ -18,6 +18,7 @@ use screencast::{ScreenCastBackend, screencast_module};
 use screenshot::{ScreenshotBackend, screenshot_module};
 use secret::{SecretBackend, secret_module};
 use settings::{SettingsBackend, settings_module};
+use wallpaper::{WallpaperBackend, wallpaper_module, backend::WallpaperIface};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -47,6 +48,7 @@ pub struct AppRoot {
     background_backend: BackgroundBackend,
     clipboard_backend: ClipboardBackend,
     dynamic_launcher_backend: DynamicLauncherBackend,
+    wallpaper_backend: WallpaperBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -66,7 +68,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -82,6 +84,7 @@ fn main() {
         BackgroundIface::introspect(),
         ClipboardIface::introspect(),
         DynamicLauncherIface::introspect(),
+        WallpaperIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -100,6 +103,7 @@ fn main() {
     let background_backend = BackgroundBackend::new(session_proxy.clone());
     let clipboard_backend = ClipboardBackend::new(session_proxy.clone());
     let dynamic_launcher_backend = DynamicLauncherBackend::new(session_proxy.clone());
+    let wallpaper_backend = WallpaperBackend::new(session_proxy.clone());
 
     let app_root = AppRoot {
         ring,
@@ -125,6 +129,7 @@ fn main() {
         background_backend,
         clipboard_backend,
         dynamic_launcher_backend,
+        wallpaper_backend,
     };
 
     let mut app = App::new(app_root)
@@ -151,7 +156,8 @@ fn main() {
         .mount(polkit_agent_module())
         .mount(background_module())
         .mount(clipboard_module())
-        .mount(dynamic_launcher_module());
+        .mount(dynamic_launcher_module())
+        .mount(wallpaper_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);

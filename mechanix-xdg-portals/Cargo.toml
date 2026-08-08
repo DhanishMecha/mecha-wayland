@@ -18,6 +18,7 @@ members = [
     "portals/background",
     "portals/clipboard",
     "portals/dynamic-launcher",
+    "portals/wallpaper",
 ]
 
 [workspace.dependencies]
@@ -60,5 +61,6 @@ polkit-agent = { path = "portals/polkit-agent" }
 background = { path = "portals/background" }
 clipboard = { path = "portals/clipboard" }
 dynamic-launcher = { path = "portals/dynamic-launcher" }
+wallpaper = { path = "portals/wallpaper" }
 
 
