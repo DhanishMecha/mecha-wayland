@@ -987,6 +987,7 @@ dependencies = [
  "screenshot",
  "secret",
  "settings",
+ "usb",
  "wallpaper",
  "window-manager",
 ]
@@ -1762,6 +1763,23 @@ name = "unicode-vo"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
+
+[[package]]
+name = "usb"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
+]
 
 [[package]]
 name = "usvg"

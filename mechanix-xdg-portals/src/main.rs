@@ -19,6 +19,7 @@ use screenshot::{ScreenshotBackend, screenshot_module};
 use secret::{SecretBackend, secret_module};
 use settings::{SettingsBackend, settings_module};
 use wallpaper::{WallpaperBackend, wallpaper_module, backend::WallpaperIface};
+use usb::{UsbBackend, usb_module, backend::UsbIface};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -49,6 +50,7 @@ pub struct AppRoot {
     clipboard_backend: ClipboardBackend,
     dynamic_launcher_backend: DynamicLauncherBackend,
     wallpaper_backend: WallpaperBackend,
+    usb_backend: UsbBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -68,7 +70,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -85,6 +87,7 @@ fn main() {
         ClipboardIface::introspect(),
         DynamicLauncherIface::introspect(),
         WallpaperIface::introspect(),
+        UsbIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -104,6 +107,7 @@ fn main() {
     let clipboard_backend = ClipboardBackend::new(session_proxy.clone());
     let dynamic_launcher_backend = DynamicLauncherBackend::new(session_proxy.clone());
     let wallpaper_backend = WallpaperBackend::new(session_proxy.clone());
+    let usb_backend = UsbBackend::new(session_proxy.clone());
 
     let app_root = AppRoot {
         ring,
@@ -130,6 +134,7 @@ fn main() {
         clipboard_backend,
         dynamic_launcher_backend,
         wallpaper_backend,
+        usb_backend,
     };
 
     let mut app = App::new(app_root)
@@ -157,7 +162,8 @@ fn main() {
         .mount(background_module())
         .mount(clipboard_module())
         .mount(dynamic_launcher_module())
-        .mount(wallpaper_module());
+        .mount(wallpaper_module())
+        .mount(usb_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);
