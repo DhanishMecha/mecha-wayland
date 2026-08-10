@@ -785,6 +785,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "global-shortcuts"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
+]
+
+[[package]]
 name = "glow"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -978,6 +995,7 @@ dependencies = [
  "dynamic-launcher",
  "email",
  "file-chooser",
+ "global-shortcuts",
  "inhibit",
  "io-ring",
  "notification",

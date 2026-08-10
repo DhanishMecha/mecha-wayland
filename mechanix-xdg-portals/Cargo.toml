@@ -20,6 +20,7 @@ members = [
     "portals/dynamic-launcher",
     "portals/wallpaper",
     "portals/usb",
+    "portals/global-shortcuts",
 ]
 
 [workspace.dependencies]
@@ -64,6 +65,7 @@ clipboard = { path = "portals/clipboard" }
 dynamic-launcher = { path = "portals/dynamic-launcher" }
 wallpaper = { path = "portals/wallpaper" }
 usb = { path = "portals/usb" }
+global-shortcuts = { path = "portals/global-shortcuts" }
 
 
 
