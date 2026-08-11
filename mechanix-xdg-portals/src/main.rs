@@ -21,6 +21,7 @@ use settings::{SettingsBackend, settings_module};
 use wallpaper::{WallpaperBackend, wallpaper_module, backend::WallpaperIface};
 use usb::{UsbBackend, usb_module, backend::UsbIface};
 use global_shortcuts::{GlobalShortcutsBackend, global_shortcuts_module, backend::GlobalShortcutsIface};
+use permission_store::{PermissionStoreBackend, permission_store_module, PermissionStoreIface};
 
 use io_ring::{Ring, RingSettings};
 use window_manager::WindowManager;
@@ -53,6 +54,7 @@ pub struct AppRoot {
     wallpaper_backend: WallpaperBackend,
     usb_backend: UsbBackend,
     global_shortcuts_backend: GlobalShortcutsBackend,
+    permission_store_backend: PermissionStoreBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -72,7 +74,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -91,6 +93,7 @@ fn main() {
         WallpaperIface::introspect(),
         UsbIface::introspect(),
         GlobalShortcutsIface::introspect(),
+        PermissionStoreIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -112,6 +115,7 @@ fn main() {
     let wallpaper_backend = WallpaperBackend::new(session_proxy.clone());
     let usb_backend = UsbBackend::new(session_proxy.clone());
     let global_shortcuts_backend = GlobalShortcutsBackend::new(session_proxy.clone());
+    let permission_store_backend = PermissionStoreBackend::new(session_proxy.clone());
 
     let app_root = AppRoot {
         ring,
@@ -140,6 +144,7 @@ fn main() {
         wallpaper_backend,
         usb_backend,
         global_shortcuts_backend,
+        permission_store_backend,
     };
 
     let mut app = App::new(app_root)
@@ -169,7 +174,8 @@ fn main() {
         .mount(dynamic_launcher_module())
         .mount(wallpaper_module())
         .mount(usb_module())
-        .mount(global_shortcuts_module());
+        .mount(global_shortcuts_module())
+        .mount(permission_store_module());
 
     println!("[main] Starting application event loop.");
     app.dispatch(&app::Start);
