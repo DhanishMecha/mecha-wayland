@@ -886,6 +886,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "input-capture"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "interactivity",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
+]
+
+[[package]]
 name = "interactivity"
 version = "0.1.0"
 dependencies = [
@@ -997,6 +1014,7 @@ dependencies = [
  "file-chooser",
  "global-shortcuts",
  "inhibit",
+ "input-capture",
  "io-ring",
  "notification",
  "permission-store",

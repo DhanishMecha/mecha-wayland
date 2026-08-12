@@ -22,6 +22,7 @@ members = [
     "portals/usb",
     "portals/global-shortcuts",
     "portals/permission-store",
+    "portals/input-capture",
 ]
 
 [workspace.dependencies]
@@ -68,6 +69,7 @@ wallpaper = { path = "portals/wallpaper" }
 usb = { path = "portals/usb" }
 global-shortcuts = { path = "portals/global-shortcuts" }
 permission-store = { path = "portals/permission-store" }
+input-capture = { path = "portals/input-capture" }
 
 
 
