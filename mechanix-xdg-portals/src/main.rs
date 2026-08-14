@@ -23,6 +23,8 @@ use usb::{UsbBackend, usb_module, backend::UsbIface};
 use global_shortcuts::{GlobalShortcutsBackend, global_shortcuts_module, backend::GlobalShortcutsIface};
 use permission_store::{PermissionStoreBackend, permission_store_module, PermissionStoreIface};
 use input_capture::{InputCaptureBackend, input_capture_module, backend::InputCaptureIface};
+use print::{PrintBackend, print_module, backend::PrintIface};
+use lockdown::{LockdownBackend, lockdown_module, backend::LockdownIface};
 
 
 use io_ring::{Ring, RingSettings};
@@ -58,6 +60,8 @@ pub struct AppRoot {
     global_shortcuts_backend: GlobalShortcutsBackend,
     permission_store_backend: PermissionStoreBackend,
     input_capture_backend: InputCaptureBackend,
+    print_backend: PrintBackend,
+    lockdown_backend: LockdownBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -77,7 +81,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -98,6 +102,8 @@ fn main() {
         GlobalShortcutsIface::introspect(),
         PermissionStoreIface::introspect(),
         InputCaptureIface::introspect(),
+        PrintIface::introspect(),
+        LockdownIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -121,6 +127,8 @@ fn main() {
     let global_shortcuts_backend = GlobalShortcutsBackend::new(session_proxy.clone());
     let permission_store_backend = PermissionStoreBackend::new(session_proxy.clone());
     let input_capture_backend = InputCaptureBackend::new(session_proxy.clone());
+    let print_backend = PrintBackend::new(session_proxy.clone());
+    let lockdown_backend = LockdownBackend::new(session_proxy.clone());
 
 
     let app_root = AppRoot {
@@ -152,6 +160,8 @@ fn main() {
         global_shortcuts_backend,
         permission_store_backend,
         input_capture_backend,
+        print_backend,
+        lockdown_backend,
     };
 
     let mut app = App::new(app_root)
@@ -183,7 +193,9 @@ fn main() {
         .mount(usb_module())
         .mount(global_shortcuts_module())
         .mount(permission_store_module())
-        .mount(input_capture_module());
+        .mount(input_capture_module())
+        .mount(print_module())
+        .mount(lockdown_module());
 
 
     println!("[main] Starting application event loop.");

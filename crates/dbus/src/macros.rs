@@ -151,7 +151,7 @@ macro_rules! dbus_interface {
                 $(
                     s.push_str(&::std::format!(
                         "    <property name=\"{}\" type=\"{}\" access=\"{}\"/>\n",
-                        ::core::stringify!($pname),
+                        ::core::stringify!($pname).replace('_', "-"),
                         <$pty as $crate::zbus::zvariant::Type>::SIGNATURE,
                         ::core::stringify!($paccess)));
                 )*

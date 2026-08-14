@@ -992,6 +992,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
+name = "lockdown"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "dbus",
+ "portal-core",
+ "serde",
+ "zbus",
+]
+
+[[package]]
 name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1016,10 +1027,12 @@ dependencies = [
  "inhibit",
  "input-capture",
  "io-ring",
+ "lockdown",
  "notification",
  "permission-store",
  "polkit-agent",
  "portal-core",
+ "print",
  "screencast",
  "screenshot",
  "secret",
@@ -1226,6 +1239,23 @@ checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2",
  "syn",
+]
+
+[[package]]
+name = "print"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "dbus",
+ "libc",
+ "portal-core",
+ "serde",
+ "taffy",
+ "ui",
+ "utils",
+ "window-manager",
+ "zbus",
 ]
 
 [[package]]

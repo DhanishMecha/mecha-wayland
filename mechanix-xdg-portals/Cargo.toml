@@ -23,6 +23,8 @@ members = [
     "portals/global-shortcuts",
     "portals/permission-store",
     "portals/input-capture",
+    "portals/print",
+    "portals/lockdown",
 ]
 
 [workspace.dependencies]
@@ -70,6 +72,5 @@ usb = { path = "portals/usb" }
 global-shortcuts = { path = "portals/global-shortcuts" }
 permission-store = { path = "portals/permission-store" }
 input-capture = { path = "portals/input-capture" }
-
-
-
+print = { path = "portals/print" }
+lockdown = { path = "portals/lockdown" }
