@@ -307,8 +307,8 @@ fn modal_style() -> Style {
         justify_content: Some(JustifyContent::SpaceBetween),
         align_items: Some(AlignItems::Center),
         size: Size {
-            width: length(440.0_f32),
-            height: length(280.0_f32),
+            width: length(520.0_f32),
+            height: length(320.0_f32),
         },
         padding: taffy::Rect {
             left: length(40.0_f32),

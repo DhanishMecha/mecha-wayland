@@ -25,6 +25,7 @@ use permission_store::{PermissionStoreBackend, permission_store_module, Permissi
 use input_capture::{InputCaptureBackend, input_capture_module, backend::InputCaptureIface};
 use print::{PrintBackend, print_module, backend::PrintIface};
 use lockdown::{LockdownBackend, lockdown_module, backend::LockdownIface};
+use remote_desktop::{RemoteDesktopBackend, remote_desktop_module, backend::RemoteDesktopIface};
 
 
 use io_ring::{Ring, RingSettings};
@@ -62,6 +63,7 @@ pub struct AppRoot {
     input_capture_backend: InputCaptureBackend,
     print_backend: PrintBackend,
     lockdown_backend: LockdownBackend,
+    remote_desktop_backend: RemoteDesktopBackend,
 }
 
 pub fn main_poll_module<S>() -> impl RegisteredModule<AppRoot, S> {
@@ -81,7 +83,7 @@ fn main() {
     // One shared proxy for all session-bus portals — one name registration
     let session_proxy = dbus_session.proxy();
     let combined_xml = format!(
-        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         file_chooser::backend::FileChooser::introspect(),
         access::backend::Access::introspect(),
         app_chooser::backend::AppChooserIface::introspect(),
@@ -104,6 +106,7 @@ fn main() {
         InputCaptureIface::introspect(),
         PrintIface::introspect(),
         LockdownIface::introspect(),
+        RemoteDesktopIface::introspect(),
     );
     let portal_host = PortalHost::new(session_proxy.clone(), combined_xml);
     let backend = FileChooserBackend::new(session_proxy.clone());
@@ -129,6 +132,7 @@ fn main() {
     let input_capture_backend = InputCaptureBackend::new(session_proxy.clone());
     let print_backend = PrintBackend::new(session_proxy.clone());
     let lockdown_backend = LockdownBackend::new(session_proxy.clone());
+    let remote_desktop_backend = RemoteDesktopBackend::new(session_proxy.clone());
 
 
     let app_root = AppRoot {
@@ -162,6 +166,7 @@ fn main() {
         input_capture_backend,
         print_backend,
         lockdown_backend,
+        remote_desktop_backend,
     };
 
     let mut app = App::new(app_root)
@@ -195,7 +200,8 @@ fn main() {
         .mount(permission_store_module())
         .mount(input_capture_module())
         .mount(print_module())
-        .mount(lockdown_module());
+        .mount(lockdown_module())
+        .mount(remote_desktop_module());
 
 
     println!("[main] Starting application event loop.");

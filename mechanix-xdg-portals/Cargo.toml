@@ -25,6 +25,7 @@ members = [
     "portals/input-capture",
     "portals/print",
     "portals/lockdown",
+    "portals/remote-desktop",
 ]
 
 [workspace.dependencies]
@@ -74,3 +75,4 @@ permission-store = { path = "portals/permission-store" }
 input-capture = { path = "portals/input-capture" }
 print = { path = "portals/print" }
 lockdown = { path = "portals/lockdown" }
+remote-desktop = { path = "portals/remote-desktop" }
