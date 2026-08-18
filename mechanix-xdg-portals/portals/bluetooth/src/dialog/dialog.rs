@@ -184,6 +184,121 @@ fn short_device(device: &str) -> String {
     }
 }
 
+fn lookup_bluetooth_service_name(uuid: &str) -> Option<&'static str> {
+    let s = uuid.trim().to_lowercase();
+    let short_hex = if s.len() == 36 && s.ends_with("-0000-1000-8000-00805f9b34fb") {
+        &s[4..8]
+    } else if s.starts_with("0x") {
+        s.trim_start_matches("0x")
+    } else {
+        &s
+    };
+
+    match short_hex {
+        // Service Classes / Profiles (0x1100 - 0x113F, 0x1200)
+        "1101" => Some("Serial Port (SPP)"),
+        "1102" => Some("LAN Access (PPP)"),
+        "1103" => Some("Dial-Up Networking (DUN)"),
+        "1104" => Some("IrMC Sync"),
+        "1105" => Some("Object Push (OPP)"),
+        "1106" => Some("File Transfer (FTP)"),
+        "1107" => Some("IrMC Sync Command"),
+        "1108" => Some("Headset (HSP)"),
+        "1109" => Some("Cordless Telephony"),
+        "110a" => Some("Audio Source (A2DP)"),
+        "110b" => Some("Audio Sink (A2DP)"),
+        "110c" => Some("A/V Remote Control Target"),
+        "110d" => Some("Advanced Audio Distribution (A2DP)"),
+        "110e" => Some("A/V Remote Control (AVRCP)"),
+        "110f" => Some("A/V Remote Control Controller"),
+        "1110" => Some("Intercom"),
+        "1111" => Some("Fax"),
+        "1112" => Some("Headset Audio Gateway"),
+        "1115" => Some("Personal Area Networking (PANU)"),
+        "1116" => Some("Network Access Point (NAP)"),
+        "1117" => Some("Group Ad-hoc Network (GN)"),
+        "111a" => Some("Basic Imaging (BIP)"),
+        "111e" => Some("Hands-Free (HFP)"),
+        "111f" => Some("Hands-Free Audio Gateway"),
+        "1122" => Some("Basic Printing (BPP)"),
+        "1124" => Some("Human Interface Device (HID)"),
+        "1125" => Some("Hardcopy Cable Replacement (HCRP)"),
+        "112d" => Some("SIM Access (SAP)"),
+        "112f" => Some("Phonebook Access Server (PBAP)"),
+        "1130" => Some("Phonebook Access Client (PBAP)"),
+        "1131" => Some("Phonebook Access (PBAP)"),
+        "1132" => Some("Message Access Server (MAP)"),
+        "1133" => Some("Message Notification Server (MAP)"),
+        "1134" => Some("Message Access Profile (MAP)"),
+        "1135" => Some("GNSS Server"),
+        "1200" => Some("Device Information (PnP)"),
+
+        // GATT Services (0x1800 - 0x1855)
+        "1800" => Some("Generic Access"),
+        "1801" => Some("Generic Attribute"),
+        "1802" => Some("Immediate Alert"),
+        "1803" => Some("Link Loss"),
+        "1804" => Some("Tx Power"),
+        "1805" => Some("Current Time Service"),
+        "1806" => Some("Reference Time Update"),
+        "1807" => Some("Next DST Change"),
+        "1808" => Some("Glucose Service"),
+        "1809" => Some("Health Thermometer"),
+        "180a" => Some("Device Information"),
+        "180d" => Some("Heart Rate Monitor"),
+        "180e" => Some("Phone Alert Status"),
+        "180f" => Some("Battery Service"),
+        "1810" => Some("Blood Pressure"),
+        "1811" => Some("Alert Notification"),
+        "1812" => Some("Human Interface Device (HID LE)"),
+        "1813" => Some("Scan Parameters"),
+        "1814" => Some("Running Speed and Cadence"),
+        "1815" => Some("Automation IO"),
+        "1816" => Some("Cycling Speed and Cadence"),
+        "1818" => Some("Cycling Power"),
+        "1819" => Some("Location and Navigation"),
+        "181a" => Some("Environmental Sensing"),
+        "181b" => Some("Body Composition"),
+        "181c" => Some("User Data"),
+        "181d" => Some("Weight Scale"),
+        "181e" => Some("Bond Management"),
+        "181f" => Some("Continuous Glucose"),
+        "1820" => Some("IP Support Service"),
+        "1821" => Some("Indoor Positioning"),
+        "1822" => Some("Pulse Oximeter"),
+        "1823" => Some("Fitness Machine"),
+        "1824" => Some("Mesh Provisioning"),
+        "1825" => Some("Mesh Proxy"),
+        "1826" => Some("Reconnection Configuration"),
+        "1827" => Some("Volume Control"),
+        "1828" => Some("Volume Offset Control"),
+        "1829" => Some("Coordinated Audio Stream"),
+        "1843" => Some("Audio Input Control"),
+        "1844" => Some("Hearing Access"),
+        "184e" => Some("Media Control"),
+        "184f" => Some("Generic Media Control"),
+        "1853" => Some("Common Audio"),
+        "1854" => Some("Telephony and Media Audio"),
+        "1855" => Some("Public Broadcast Announcement"),
+
+        _ => None,
+    }
+}
+
+fn format_service_prompt(uuid: &str) -> (String, String) {
+    if let Some(service_name) = lookup_bluetooth_service_name(uuid) {
+        (
+            service_name.to_string(),
+            format!("Allow access to {service_name}?"),
+        )
+    } else {
+        (
+            "Bluetooth Service".into(),
+            format!("Allow service:\n{uuid}"),
+        )
+    }
+}
+
 fn make_strings(device: &str, kind: &DialogKind) -> (String, String, String) {
     let dev = short_device(device);
     match kind {
@@ -207,11 +322,10 @@ fn make_strings(device: &str, kind: &DialogKind) -> (String, String, String) {
             format!("Device: {dev}"),
             "Allow this device to connect?".into(),
         ),
-        DialogKind::AuthorizeService { uuid } => (
-            "Bluetooth Service".into(),
-            format!("Device: {dev}"),
-            format!("Allow service:\n{uuid}"),
-        ),
+        DialogKind::AuthorizeService { uuid } => {
+            let (title, body) = format_service_prompt(uuid);
+            (title, format!("Device: {dev}"), body)
+        }
         DialogKind::RequestPinCode => (
             "Bluetooth Pairing".into(),
             format!("Device: {dev}"),
