@@ -1,0 +1,7 @@
+[[atlas]]
+name = "lockscreen"
+
+[[atlas.font]]
+name = "inter"
+path = "../../assets/Inter-Regular.ttf"
+sizes = [128, 46, 24, 36, 12]

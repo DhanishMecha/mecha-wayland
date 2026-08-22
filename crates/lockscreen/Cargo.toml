@@ -1,0 +1,25 @@
+[package]
+name = "lockscreen"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "lockscreen"
+path = "src/main.rs"
+
+[dependencies]
+app.workspace = true
+window-manager.workspace = true
+io-ring.workspace = true
+wayland = { workspace = true, features = ["client"] }
+renderer = { path = "../renderer" }
+ui = { path = "../ui" }
+assets = { path = "../assets" }
+utils = { path = "../utils" }
+taffy = { workspace = true }
+chrono = { workspace = true }
+timer = { path = "../timer" }
+
+[build-dependencies]
+anyhow = { workspace = true }
+assets = { path = "../assets", features = ["builder"] }
