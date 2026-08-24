@@ -1,4 +1,3 @@
-use super::bottombar::BottomBar;
 use super::button::Button;
 use super::circle::Circle;
 use super::numpad::{Numpad, NumpadAction};
@@ -7,7 +6,7 @@ use renderer::commands::Color;
 use taffy::prelude::*;
 use taffy::{Size, Style};
 use ui::widgets::{Div, Text};
-use ui::{Damage, OnChange, Point, Render, RenderCommand, Widget};
+use ui::{Damage, OnChange, Point, Render, RenderCommand};
 use utils::Rect as UtilsRect;
 
 /// Event payload for PIN keypad click interaction at point `p`.
@@ -62,14 +61,12 @@ type CirclesPair = (Circle, Circle);
 type CirclesRow = Div<(CirclesPair, CirclesPair)>;
 
 type PinHeader = (Text, CirclesRow);
-type PinFooter = (Numpad, BottomBar);
-type PinContainer = Div<(PinHeader, PinFooter)>;
+type PinContainer = Div<(PinHeader, Numpad)>;
 
 /// Widget representing the PIN entry screen, including keypad buttons and indicator circles.
 #[ui::widget]
 pub struct PinWidget {
     pub pin: String,
-    pub want_back: bool,
     pub active_button: Option<u8>,
     #[widget(child)]
     pub children: PinContainer,
@@ -99,11 +96,9 @@ impl PinWidget {
 
         let numpad = Numpad::new();
 
-        let cancel_btn = BottomBar::new("CANCEL");
-
         let container = Div::new(
             pin_container_style(),
-            ((title, circles), (numpad, cancel_btn)),
+            ((title, circles), numpad),
         );
 
         Self {
@@ -126,19 +121,26 @@ impl PinWidget {
             pending_damage: Damage::None,
             is_opaque: true,
             pin: String::new(),
-            want_back: false,
             active_button: None,
             children: container,
         }
     }
 
+    /// Resets the PIN widget state.
+    pub fn reset(&mut self) {
+        self.pin.clear();
+        self.active_button = None;
+        self.update_circles();
+        self.validate_pin();
+    }
+
     fn hit(&self, p: Point) -> Option<u8> {
-        self.children.children.1.0.hit(p)
+        self.children.children.1.hit(p)
     }
 
     /// Returns a mutable reference to the `Button` associated with the specified digit.
     fn button_mut(&mut self, digit: u8) -> Option<&mut Button> {
-        self.children.children.1.0.button_mut(digit)
+        self.children.children.1.button_mut(digit)
     }
 
     /// Updates the fill colors of the 4 PIN circle indicators according to current PIN length.
@@ -193,7 +195,7 @@ impl OnChange<PinClick> for PinWidget {
         Damage::None
     }
 
-    /// Processes clicks on numeric buttons (0-9), backspace, and cancel controls.
+    /// Processes clicks on numeric buttons (0-9) and backspace.
     fn change(&mut self, new: PinClick) {
         let pt = new.0;
 
@@ -210,16 +212,7 @@ impl OnChange<PinClick> for PinWidget {
         }
         self.active_button = target;
 
-        let cancel_btn = &self.children.children.1.1;
-        if cancel_btn.own_bounds().contains_point(pt) {
-            self.pin.clear();
-            self.update_circles();
-            self.validate_pin();
-            self.want_back = true;
-            return;
-        }
-
-        let numpad = &self.children.children.1.0;
+        let numpad = &self.children.children.1;
         if let Some(action) = numpad.hit_action(pt) {
             match action {
                 NumpadAction::Digit(ch) => {
@@ -243,3 +236,4 @@ impl OnChange<PinClick> for PinWidget {
         }
     }
 }
+

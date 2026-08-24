@@ -1,9 +1,10 @@
+use crate::ScreenState;
 use crate::atlas;
 use renderer::commands::Color;
 use taffy::prelude::*;
 use taffy::{Size, Style};
 use ui::widgets::{Div, Text};
-use ui::{Damage, Point, Render, RenderCommand};
+use ui::{Damage, OnChange, Point, Render, RenderCommand};
 
 fn bottom_container_style() -> Style {
     Style {
@@ -53,5 +54,18 @@ impl BottomBar {
     /// Sets the text content for the bottom bar.
     pub fn set_text(&mut self, text: impl Into<String>) {
         self.children.children.0.set(text.into());
+    }
+}
+
+impl OnChange<ScreenState> for BottomBar {
+    fn damage(&self, _new: &ScreenState) -> Damage {
+        Damage::None
+    }
+
+    fn change(&mut self, state: ScreenState) {
+        match state {
+            ScreenState::HoldToExpand => self.set_text("HOLD TO EXPAND"),
+            ScreenState::PinLock => self.set_text("CANCEL"),
+        }
     }
 }

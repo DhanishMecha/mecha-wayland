@@ -4,8 +4,6 @@ pub mod atlas {
 
 pub mod widgets;
 
-use std::cell::Cell;
-
 use app::prelude::*;
 use io_ring::Ring;
 use renderer::commands::Color;
@@ -56,16 +54,11 @@ fn root_style() -> Style {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct ScreenClick;
-
-pub struct GetScreenState<'a>(pub &'a Cell<ScreenState>);
-
 #[ui::widget]
 struct Lockscreen {
     screen: ScreenState,
     #[widget(child)]
-    children: (TimeWidget, BottomBar, PinWidget),
+    children: (TimeWidget, PinWidget, BottomBar),
 }
 
 impl Render for Lockscreen {
@@ -85,13 +78,14 @@ impl Lockscreen {
             screen: ScreenState::HoldToExpand,
             children: (
                 TimeWidget::new(),
-                BottomBar::new("HOLD TO EXPAND"),
                 PinWidget::new(),
+                BottomBar::new("HOLD TO EXPAND"),
             ),
         }
     }
 }
 
+/// Updates date and time.
 impl OnChange<DateTimeUpdate> for Lockscreen {
     fn damage(&self, _new: &DateTimeUpdate) -> Damage {
         Damage::None
@@ -102,63 +96,50 @@ impl OnChange<DateTimeUpdate> for Lockscreen {
     }
 }
 
-impl OnChange<ScreenClick> for Lockscreen {
-    fn damage(&self, _new: &ScreenClick) -> Damage {
-        Damage::None
-    }
-
-    fn change(&mut self, _new: ScreenClick) {
-        self.screen = ScreenState::PinLock;
-
-        let mut hold_style = self.children.1.style().clone();
-        hold_style.display = Display::None;
-        self.children.1.set(hold_style);
-
-        let mut pin_style = self.children.2.style().clone();
-        pin_style.display = Display::Flex;
-        self.children.2.set(pin_style);
-    }
-}
-
+/// Handles click interactions and state transitions for the Lockscreen.
 impl OnChange<PinClick> for Lockscreen {
     fn damage(&self, _new: &PinClick) -> Damage {
         Damage::None
     }
 
     fn change(&mut self, new: PinClick) {
-        self.children.2.set(new);
-        if self.children.2.want_back {
-            self.children.2.want_back = false;
-            self.screen = ScreenState::HoldToExpand;
+        match self.screen {
+            ScreenState::HoldToExpand => {
+                self.screen = ScreenState::PinLock;
 
-            let mut pin_style = self.children.2.style().clone();
-            pin_style.display = Display::None;
-            self.children.2.set(pin_style);
+                let mut pin_style = self.children.1.style().clone();
+                pin_style.display = Display::Flex;
+                self.children.1.set(pin_style);
 
-            let mut hold_style = self.children.1.style().clone();
-            hold_style.display = Display::Flex;
-            self.children.1.set(hold_style);
+                self.children.2.set(self.screen);
+            }
+            ScreenState::PinLock => {
+                if self.children.2.own_bounds().contains_point(new.0) {
+                    self.children.1.reset();
+                    self.screen = ScreenState::HoldToExpand;
+
+                    let mut pin_style = self.children.1.style().clone();
+                    pin_style.display = Display::None;
+                    self.children.1.set(pin_style);
+
+                    self.children.2.set(self.screen);
+                    return;
+                }
+
+                self.children.1.set(new);
+            }
         }
     }
 }
 
+/// Handles PIN keypad release.
 impl OnChange<PinRelease> for Lockscreen {
     fn damage(&self, _new: &PinRelease) -> Damage {
         Damage::None
     }
 
     fn change(&mut self, new: PinRelease) {
-        self.children.2.set(new);
-    }
-}
-
-impl OnChange<GetScreenState<'_>> for Lockscreen {
-    fn damage(&self, _new: &GetScreenState<'_>) -> Damage {
-        Damage::None
-    }
-
-    fn change(&mut self, new: GetScreenState<'_>) {
-        new.0.set(self.screen);
+        self.children.1.set(new);
     }
 }
 
@@ -172,7 +153,6 @@ struct LockscreenState {
     #[lens(skip)]
     pointer: Point,
     datetime: DateTime,
-    screen: ScreenState,
 }
 
 fn main() {
@@ -203,7 +183,6 @@ fn main() {
         handle,
         pointer: Point::new(-1.0, -1.0),
         datetime: DateTime::new(),
-        screen: ScreenState::HoldToExpand,
     };
 
     let mut app = app::App::new(state)
@@ -256,21 +235,11 @@ fn update_time(s: &mut LockscreenState) {
 }
 
 fn handle_click(s: &mut LockscreenState) {
-    if s.screen == ScreenState::HoldToExpand {
-        s.screen = ScreenState::PinLock;
-        s.handle.set(ScreenClick, &mut s.wm);
-    } else if s.screen == ScreenState::PinLock {
-        s.handle.set(PinClick(s.pointer), &mut s.wm);
-        let current_screen = Cell::new(s.screen);
-        s.handle.set(GetScreenState(&current_screen), &mut s.wm);
-        s.screen = current_screen.get();
-    }
+    s.handle.set(PinClick(s.pointer), &mut s.wm);
 }
 
 fn handle_release(s: &mut LockscreenState) {
-    if s.screen == ScreenState::PinLock {
-        s.handle.set(PinRelease, &mut s.wm);
-    }
+    s.handle.set(PinRelease, &mut s.wm);
 }
 
 fn on_touch(s: &mut LockscreenState, ev: &WlTouchEvent) {
@@ -323,3 +292,4 @@ fn on_pointer(s: &mut LockscreenState, ev: &WlPointerEvent) {
         _ => {}
     }
 }
+
