@@ -20,23 +20,6 @@ pub fn filled_button_style() -> Style {
     }
 }
 
-pub fn transparent_button_style() -> Style {
-    Style {
-        display: Display::Flex,
-        justify_content: Some(JustifyContent::Center),
-        align_items: Some(AlignItems::Center),
-        size: Size {
-            width: length(152.0_f32),
-            height: length(56.0_f32),
-        },
-        ..Style::default()
-    }
-}
-
-pub fn button_style() -> Style {
-    filled_button_style()
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ButtonType {
     #[default]
@@ -59,24 +42,12 @@ impl Render for Button {
 
 impl Button {
     pub fn new(num: &str) -> Self {
-        Self::filled(num)
-    }
-
-    pub fn filled(num: &str) -> Self {
         Self::filled_with_style(num, filled_button_style())
-    }
-
-    pub fn transparent(num: &str) -> Self {
-        Self::transparent_with_style(num, transparent_button_style())
-    }
-
-    pub fn with_style(num: &str, style: Style) -> Self {
-        Self::filled_with_style(num, style)
     }
 
     pub fn filled_with_style(num: &str, style: Style) -> Self {
         let mut txt = Text::new(Style::default());
-        txt.font = Some(&atlas::LOCKSCREEN_FONT_INTER_24);
+        txt.font = Some(&atlas::LOCKSCREEN_FONT_GEIST_MONO_24);
         txt.color = Color::from_rgb8(242, 242, 242);
         txt.text = num.into();
 
@@ -99,7 +70,7 @@ impl Button {
 
     pub fn transparent_with_style(num: &str, style: Style) -> Self {
         let mut txt = Text::new(Style::default());
-        txt.font = Some(&atlas::LOCKSCREEN_FONT_INTER_12);
+        txt.font = Some(&atlas::LOCKSCREEN_FONT_GEIST_MONO_12);
         txt.color = Color::from_rgb8(242, 242, 242);
         txt.text = num.into();
 

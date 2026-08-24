@@ -5,16 +5,6 @@ use ui::widgets::{BorderColor, Div};
 use ui::{Damage, OnChange, Point, Render, RenderCommand};
 use utils::Rect as UtilsRect;
 
-pub fn circle_style() -> Style {
-    Style {
-        size: Size {
-            width: length(14.0_f32),
-            height: length(14.0_f32),
-        },
-        ..Style::default()
-    }
-}
-
 #[ui::widget]
 pub struct Circle {
     #[widget(child)]
@@ -29,7 +19,14 @@ impl Render for Circle {
 
 impl Circle {
     pub fn new() -> Self {
-        let mut c = Div::new(circle_style(), ());
+        let style = Style {
+            size: Size {
+                width: length(14.0_f32),
+                height: length(14.0_f32),
+            },
+            ..Style::default()
+        };
+        let mut c = Div::new(style.clone(), ());
         c.border_color = BorderColor(Color::from_rgb8(140, 140, 145));
         c.border_thickness = 1.5;
         c.border_radius = 7.0;
@@ -37,27 +34,12 @@ impl Circle {
 
         Self {
             node_id: taffy::NodeId::new(u64::MAX),
-            style: circle_style(),
+            style,
             bounds: UtilsRect::ZERO,
             pending_damage: Damage::None,
             is_opaque: true,
             children: c,
         }
-    }
-}
-
-impl Default for Circle {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl OnChange<Color> for Circle {
-    fn damage(&self, _new: &Color) -> Damage {
-        Damage::None
-    }
-    fn change(&mut self, new: Color) {
-        self.children.set(new);
     }
 }
 

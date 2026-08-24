@@ -46,12 +46,12 @@ impl TimeWidget {
 
     pub fn with_initial_time(time_str: String, date_str: String) -> Self {
         let mut time_widget = Text::new(Style::default());
-        time_widget.font = Some(&atlas::LOCKSCREEN_FONT_INTER_46);
+        time_widget.font = Some(&atlas::LOCKSCREEN_FONT_GEIST_MONO_46);
         time_widget.color = Color::from_rgb8(242, 242, 240);
         time_widget.text = time_str.into();
 
         let mut date_widget = Text::new(Style::default());
-        date_widget.font = Some(&atlas::LOCKSCREEN_FONT_INTER_12);
+        date_widget.font = Some(&atlas::LOCKSCREEN_FONT_GEIST_MONO_12);
         date_widget.color = Color::from_rgb8(255, 106, 31);
         date_widget.text = date_str.into();
 

@@ -1,4 +1,3 @@
-#![recursion_limit = "2048"]
 pub mod atlas {
     include!(concat!(env!("OUT_DIR"), "/lockscreen_gen.rs"));
 }
@@ -14,18 +13,18 @@ use renderer::commands::Color;
 use taffy::prelude::*;
 use taffy::{Size, Style};
 use timer::{Absolute, Clock, Timer, TimerEvent};
-use ui::widgets::{Div, Text};
 use ui::{Damage, OnChange, Point, Render, RenderCommand, Widget};
 use utils::Rect as UtilsRect;
 use wayland::{WlPointerButtonState, WlPointerEvent, WlTouchEvent};
 use window_manager::prelude::*;
 
 use widgets::{
-    DateTime, DateTimeChanged, DateTimeTick, DateTimeUpdate, PinClick, PinHover, PinRelease,
+    BottomBar, DateTime, DateTimeChanged, DateTimeTick, DateTimeUpdate, PinClick, PinRelease,
     PinWidget, TimeWidget,
 };
 
-const BG: Color = Color::from_rgb8(0, 0, 0); // Solid black
+const BG: Color = Color::from_rgb8(0, 0, 0);
+const BTN_LEFT: u32 = 0x110;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenState {
@@ -57,19 +56,6 @@ fn root_style() -> Style {
     }
 }
 
-fn bottom_container_style() -> Style {
-    Style {
-        display: Display::Flex,
-        justify_content: Some(JustifyContent::Center),
-        align_items: Some(AlignItems::Center),
-        size: Size {
-            width: percent(1.0_f32),
-            height: auto(),
-        },
-        ..Style::default()
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct ScreenClick;
 
@@ -79,7 +65,7 @@ pub struct GetScreenState<'a>(pub &'a Cell<ScreenState>);
 struct Lockscreen {
     screen: ScreenState,
     #[widget(child)]
-    children: (TimeWidget, Div<(Text,)>, PinWidget),
+    children: (TimeWidget, BottomBar, PinWidget),
 }
 
 impl Render for Lockscreen {
@@ -90,17 +76,6 @@ impl Render for Lockscreen {
 
 impl Lockscreen {
     fn new() -> Self {
-        let time_widget = TimeWidget::new();
-
-        let mut bottom_widget = Text::new(Style::default());
-        bottom_widget.font = Some(&atlas::LOCKSCREEN_FONT_INTER_12);
-        bottom_widget.color = Color::from_rgb8(140, 140, 145);
-        bottom_widget.text = "HOLD TO EXPAND".into();
-
-        let bottom_container = Div::new(bottom_container_style(), (bottom_widget,));
-
-        let pin_widget = PinWidget::new();
-
         Self {
             node_id: taffy::NodeId::new(u64::MAX),
             style: root_style(),
@@ -108,7 +83,11 @@ impl Lockscreen {
             pending_damage: Damage::None,
             is_opaque: true,
             screen: ScreenState::HoldToExpand,
-            children: (time_widget, bottom_container, pin_widget),
+            children: (
+                TimeWidget::new(),
+                BottomBar::new("HOLD TO EXPAND"),
+                PinWidget::new(),
+            ),
         }
     }
 }
@@ -160,16 +139,6 @@ impl OnChange<PinClick> for Lockscreen {
             hold_style.display = Display::Flex;
             self.children.1.set(hold_style);
         }
-    }
-}
-
-impl OnChange<PinHover> for Lockscreen {
-    fn damage(&self, _new: &PinHover) -> Damage {
-        Damage::None
-    }
-
-    fn change(&mut self, new: PinHover) {
-        self.children.2.set(new);
     }
 }
 
@@ -286,34 +255,35 @@ fn update_time(s: &mut LockscreenState) {
     s.handle.set(DateTimeUpdate { time, date }, &mut s.wm);
 }
 
-const BTN_LEFT: u32 = 0x110;
+fn handle_click(s: &mut LockscreenState) {
+    if s.screen == ScreenState::HoldToExpand {
+        s.screen = ScreenState::PinLock;
+        s.handle.set(ScreenClick, &mut s.wm);
+    } else if s.screen == ScreenState::PinLock {
+        s.handle.set(PinClick(s.pointer), &mut s.wm);
+        let current_screen = Cell::new(s.screen);
+        s.handle.set(GetScreenState(&current_screen), &mut s.wm);
+        s.screen = current_screen.get();
+    }
+}
+
+fn handle_release(s: &mut LockscreenState) {
+    if s.screen == ScreenState::PinLock {
+        s.handle.set(PinRelease, &mut s.wm);
+    }
+}
 
 fn on_touch(s: &mut LockscreenState, ev: &WlTouchEvent) {
     match ev {
         WlTouchEvent::Down { x, y, .. } => {
             s.pointer = Point::new(*x, *y);
-            if s.screen == ScreenState::HoldToExpand {
-                s.screen = ScreenState::PinLock;
-                s.handle.set(ScreenClick, &mut s.wm);
-            } else if s.screen == ScreenState::PinLock {
-                s.handle.set(PinHover(Some(s.pointer)), &mut s.wm);
-                s.handle.set(PinClick(s.pointer), &mut s.wm);
-                let current_screen = Cell::new(s.screen);
-                s.handle.set(GetScreenState(&current_screen), &mut s.wm);
-                s.screen = current_screen.get();
-            }
+            handle_click(s);
         }
         WlTouchEvent::Motion { x, y, .. } => {
             s.pointer = Point::new(*x, *y);
-            if s.screen == ScreenState::PinLock {
-                s.handle.set(PinHover(Some(s.pointer)), &mut s.wm);
-            }
         }
         WlTouchEvent::Up { .. } | WlTouchEvent::Cancel { .. } => {
-            if s.screen == ScreenState::PinLock {
-                s.handle.set(PinHover(None), &mut s.wm);
-                s.handle.set(PinRelease, &mut s.wm);
-            }
+            handle_release(s);
         }
         _ => {}
     }
@@ -332,39 +302,23 @@ fn on_pointer(s: &mut LockscreenState, ev: &WlPointerEvent) {
             ..
         } => {
             s.pointer = Point::new(*surface_x, *surface_y);
-            if s.screen == ScreenState::PinLock {
-                s.handle.set(PinHover(Some(s.pointer)), &mut s.wm);
-            }
         }
         WlPointerEvent::Leave { .. } => {
-            if s.screen == ScreenState::PinLock {
-                s.handle.set(PinHover(None), &mut s.wm);
-                s.handle.set(PinRelease, &mut s.wm);
-            }
+            handle_release(s);
         }
         WlPointerEvent::Button {
             state: WlPointerButtonState::Pressed,
             button,
             ..
         } if *button == BTN_LEFT => {
-            if s.screen == ScreenState::HoldToExpand {
-                s.screen = ScreenState::PinLock;
-                s.handle.set(ScreenClick, &mut s.wm);
-            } else if s.screen == ScreenState::PinLock {
-                s.handle.set(PinClick(s.pointer), &mut s.wm);
-                let current_screen = Cell::new(s.screen);
-                s.handle.set(GetScreenState(&current_screen), &mut s.wm);
-                s.screen = current_screen.get();
-            }
+            handle_click(s);
         }
         WlPointerEvent::Button {
             state: WlPointerButtonState::Released,
             button,
             ..
         } if *button == BTN_LEFT => {
-            if s.screen == ScreenState::PinLock {
-                s.handle.set(PinRelease, &mut s.wm);
-            }
+            handle_release(s);
         }
         _ => {}
     }
