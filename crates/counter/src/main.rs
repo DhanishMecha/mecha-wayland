@@ -8,20 +8,14 @@ use io_ring::Ring;
 use renderer::commands::Color;
 use taffy::prelude::*;
 use taffy::{Size, Style};
-use ui::widgets::{BorderColor, DebugDamage, Div, Text};
+use theme::{MechanixTheme, WidgetState};
 use ui::{Damage, OnChange, Point, Render, RenderCommand, WidgetList};
 use utils::Rect;
 use wayland::{WlPointerButtonState, WlPointerEvent};
+use widgets::{Button, ButtonSize, Text};
 use window_manager::prelude::*;
 
 const BG: Color = Color::from_rgb8(24, 24, 32);
-const IDLE: Color = Color::from_rgb8(46, 52, 72);
-const HOT: Color = Color::from_rgb8(74, 108, 170);
-const BORDER: Color = Color::from_rgb8(120, 140, 190);
-const LABEL: Color = Color::from_rgb8(220, 226, 240);
-const COUNT: Color = Color::from_rgb8(240, 244, 255);
-
-const BTN: f32 = 96.0;
 const BTN_LEFT: u32 = 0x110;
 
 const FONT: &assets::BakedFont = &atlas::COUNTER_FONT_INTER_64;
@@ -36,8 +30,6 @@ enum Btn {
 struct Hover(Option<Point>);
 #[derive(Clone, Copy)]
 struct Click(Point);
-
-type Button = Div<(Text,)>;
 
 fn row_style() -> Style {
     Style {
@@ -57,36 +49,6 @@ fn row_style() -> Style {
     }
 }
 
-fn button_style() -> Style {
-    Style {
-        display: Display::Flex,
-        justify_content: Some(JustifyContent::Center),
-        align_items: Some(AlignItems::Center),
-        size: Size {
-            width: length(BTN),
-            height: length(BTN),
-        },
-        ..Style::default()
-    }
-}
-
-fn glyph(s: &str, color: Color) -> Text {
-    let mut t = Text::new(Style::default());
-    t.font = Some(FONT);
-    t.text = s.into();
-    t.color = color;
-    t
-}
-
-fn button(label: &str) -> Button {
-    let mut d = Div::new(button_style(), (glyph(label, LABEL),));
-    d.color = IDLE;
-    d.border_color = BorderColor(BORDER);
-    d.border_thickness = 2.0;
-    d.border_radius = 16.0;
-    d
-}
-
 #[ui::widget]
 struct Counter {
     count: u32,
@@ -103,6 +65,7 @@ impl Render for Counter {
 
 impl Counter {
     fn new() -> Self {
+        let theme = MechanixTheme::dark();
         Self {
             node_id: taffy::NodeId::new(u64::MAX),
             style: row_style(),
@@ -111,7 +74,14 @@ impl Counter {
             is_opaque: true,
             count: 0,
             hovered: None,
-            children: (button("-"), glyph("0", COUNT), button("+")),
+            children: (
+                Button::outlined("-", &theme)
+                    .font(FONT)
+                    .size(ButtonSize::LARGE)
+                    .accented(),
+                Text::new("0", &theme).font(FONT),
+                Button::new("+", &theme).font(FONT).size(ButtonSize::LARGE),
+            ),
         }
     }
 
@@ -144,10 +114,10 @@ impl OnChange<Hover> for Counter {
             return;
         }
         if let Some(old) = self.hovered {
-            self.button_mut(old).set(IDLE);
+            self.button_mut(old).set(WidgetState::Enabled);
         }
         if let Some(t) = target {
-            self.button_mut(t).set::<Color>(HOT);
+            self.button_mut(t).set(WidgetState::Hovered);
         }
         self.hovered = target;
     }
@@ -183,6 +153,7 @@ struct CounterState {
 fn main() {
     let ring = Ring::default();
     let mut wm = WindowManager::new(ring.proxy());
+    wm.upload_atlas(&widgets::default_atlas::WIDGET_FONTS);
     wm.upload_atlas(&atlas::COUNTER);
 
     let handle = wm.spawn_window(

@@ -14,6 +14,8 @@ io-ring.workspace = true
 wayland = { workspace = true, features = ["client"] }
 renderer = { path = "../renderer" }
 ui = { path = "../ui" }
+widgets = { path = "../widgets" }
+theme = { path = "../theme" }
 assets = { path = "../assets" }
 utils = { path = "../utils" }
 taffy = { workspace = true }
