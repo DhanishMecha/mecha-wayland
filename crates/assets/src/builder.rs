@@ -66,8 +66,15 @@ pub fn pack_atlas(toml_path: &Path, out_dir: &Path) -> Result<()> {
 
     let base_dir = toml_path.parent().unwrap_or(Path::new("."));
 
-    for (idx, atlas) in config.atlas.iter().enumerate() {
-        pack_one_atlas(atlas, base_dir, out_dir, idx as u32)?;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    // Generate a unique, deterministic AtlasId from atlas.name to avoid texture collisions.
+    for atlas in &config.atlas {
+        let mut hasher = DefaultHasher::new();
+        atlas.name.hash(&mut hasher);
+        let atlas_id = (hasher.finish() & 0x7FFF_FFFF) as u32;
+        pack_one_atlas(atlas, base_dir, out_dir, atlas_id)?;
     }
 
     Ok(())

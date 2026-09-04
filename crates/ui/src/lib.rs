@@ -4,9 +4,8 @@ use assets::BakedFont;
 use interactivity::InteractivityState;
 use std::any::Any;
 use taffy::{AvailableSpace, Layout, NodeId, Size, Style, TaffyTree};
-use utils::{Color, Rect, Size as USize};
-
-pub use utils::Point;
+pub use theme::EdgeInsets;
+pub use utils::{Color, Point, Rect, Size as USize};
 
 pub use ui_macro::register_events;
 pub use ui_macro::widget;

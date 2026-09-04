@@ -1,0 +1,7 @@
+[[atlas]]
+name = "widget_fonts"
+
+[[atlas.font]]
+name = "space_grotesk"
+path = "../../assets/SpaceGrotesk-Regular.ttf"
+sizes = [11, 12, 14, 16, 22, 24, 28, 32, 36, 45, 57, 64]

@@ -1,5 +1,5 @@
 [package]
-name = "ui"
+name = "widgets"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,6 +8,11 @@ app.workspace = true
 taffy = { workspace = true }
 assets = { path = "../assets" }
 utils = { path = "../utils" }
+ui = { path = "../ui" }
 ui-macro = { path = "../ui-macro" }
 interactivity = { path = "../interactivity" }
 theme = { path = "../theme" }
+
+[build-dependencies]
+anyhow = { workspace = true }
+assets = { path = "../assets", features = ["builder"] }
