@@ -15,13 +15,9 @@ use crate::Text;
 pub struct Button {
     pub theme: MechanixTheme,
     pub font: Option<&'static BakedFont>,
+    pub button_style: ResolvedButtonStyle,
     pub tokens: ButtonStyle,
     pub state: WidgetState,
-    pub background_color: Color,
-    pub border_color: Color,
-    pub border_thickness: f32,
-    pub border_radius: Option<f32>,
-    pub padding: Option<TaffyRect<LengthPercentage>>,
     #[widget(child)]
     pub label_widget: Text,
 }
@@ -29,24 +25,25 @@ pub struct Button {
 impl Render for Button {
     fn render(&self, layout: &taffy::Layout, abs_pos: Point) -> Vec<RenderCommand> {
         let _radius = self
+            .button_style
             .border_radius
             .unwrap_or_else(|| self.tokens.shape.radius_px(layout.size.height));
 
         vec![RenderCommand::DrawQuad {
-            color: self.background_color,
-            border_color: self.border_color,
+            color: self.button_style.background_color,
+            border_color: self.button_style.border_color,
             origin: abs_pos,
             z: 0.0,
             size: USize::new(layout.size.width, layout.size.height),
-            border_radius: 1.0,
-            border_thickness: self.border_thickness,
+            border_radius: 1.0, // TODO: use radius
+            border_thickness: self.button_style.border_thickness,
             background: Color::TRANSPARENT,
             is_opaque: true,
         }]
     }
 
     fn fill(&self) -> Color {
-        self.background_color
+        self.button_style.background_color
     }
 }
 
@@ -88,13 +85,9 @@ impl Button {
             is_opaque: true,
             theme: theme.clone(),
             font: None,
+            button_style: style_spec,
             tokens,
             state,
-            background_color: style_spec.background_color,
-            border_color: style_spec.border_color,
-            border_thickness: style_spec.border_thickness,
-            border_radius: None,
-            padding: None,
             label_widget,
         }
     }
@@ -115,36 +108,78 @@ impl Button {
     pub fn size(mut self, size: ButtonSize) -> Self {
         self.tokens.size = size;
         self.style.size.height = length(size.height);
-        let padding = self.padding.unwrap_or(size.padding);
-        self.style.padding = padding;
+        self.button_style.padding = size.padding;
+        self.style.padding = size.padding;
         self.label_widget = self.label_widget.variant(size.typography_variant);
         self
     }
 
     pub fn padding(mut self, padding: TaffyRect<LengthPercentage>) -> Self {
-        self.padding = Some(padding);
+        self.button_style.padding = padding;
         self.style.padding = padding;
         self
     }
 
     pub fn background_color(mut self, color: Color) -> Self {
-        self.background_color = color;
+        self.button_style.background_color = color;
         self
     }
 
     pub fn border_color(mut self, color: Color) -> Self {
-        self.border_color = color;
+        self.button_style.border_color = color;
         self
     }
 
     pub fn border_thickness(mut self, thickness: f32) -> Self {
-        self.border_thickness = thickness;
+        self.button_style.border_thickness = thickness;
         self.tokens.border_thickness = thickness;
         self
     }
 
     pub fn border_radius(mut self, radius: f32) -> Self {
-        self.border_radius = Some(radius);
+        self.button_style.border_radius = Some(radius);
+        self
+    }
+
+    pub fn set_accented(&mut self, accented: bool) -> &mut Self {
+        let is_outlined =
+            self.tokens.background_color.is_none() || self.tokens.border_color.is_some();
+        if is_outlined {
+            if accented {
+                self.tokens.border_color = Some(theme::ColorVariant::Primary);
+                self.tokens.label_color = theme::ColorVariant::Primary;
+                self.tokens.hover_state_layer.color_variant = theme::ColorVariant::Primary;
+                self.tokens.focus_state_layer.color_variant = theme::ColorVariant::Primary;
+                self.tokens.pressed_state_layer.color_variant = theme::ColorVariant::Primary;
+            } else {
+                self.tokens.border_color = Some(theme::ColorVariant::Outline);
+                self.tokens.label_color = theme::ColorVariant::OnPrimary;
+                self.tokens.hover_state_layer.color_variant =
+                    theme::ColorVariant::OnSurfaceVariant;
+                self.tokens.focus_state_layer.color_variant =
+                    theme::ColorVariant::OnSurfaceVariant;
+                self.tokens.pressed_state_layer.color_variant =
+                    theme::ColorVariant::OnSurfaceVariant;
+            }
+        } else {
+            if accented {
+                self.tokens.background_color = Some(theme::ColorVariant::Primary);
+                self.tokens.label_color = theme::ColorVariant::OnPrimary;
+                self.tokens.hover_state_layer.color_variant = theme::ColorVariant::OnPrimary;
+                self.tokens.focus_state_layer.color_variant = theme::ColorVariant::OnPrimary;
+                self.tokens.pressed_state_layer.color_variant = theme::ColorVariant::OnPrimary;
+            } else {
+                self.tokens.background_color = Some(theme::ColorVariant::SecondaryFixedDim);
+                self.tokens.label_color = theme::ColorVariant::OnPrimary;
+            }
+        }
+        let style_spec = self.tokens.resolve(&self.theme, self.state);
+        self.apply_resolved_style(&style_spec);
+        self
+    }
+
+    pub fn accented(mut self) -> Self {
+        self.set_accented(true);
         self
     }
 
@@ -181,17 +216,19 @@ impl Button {
         self.state = state;
         self.theme = theme.clone();
         let style_spec = self.tokens.resolve(theme, state);
+        self.label_widget.apply_theme(theme);
         self.apply_resolved_style(&style_spec);
     }
 
     /// Apply a pre-resolved [`ResolvedButtonStyle`].
     fn apply_resolved_style(&mut self, style: &ResolvedButtonStyle) {
-        self.background_color = style.background_color;
-        self.border_color = style.border_color;
-        self.border_thickness = style.border_thickness;
+        let prev_radius = self.button_style.border_radius;
+        self.button_style = *style;
+        if style.border_radius.is_none() {
+            self.button_style.border_radius = prev_radius;
+        }
         self.label_widget.text_style.color = style.content_color;
-        let padding = self.padding.unwrap_or(style.padding);
-        self.style.padding = padding;
+        self.style.padding = style.padding;
     }
 }
 
@@ -222,7 +259,7 @@ impl OnChange<Color> for Button {
     }
 
     fn change(&mut self, new: Color) {
-        self.background_color = new;
+        self.button_style.background_color = new;
     }
 }
 

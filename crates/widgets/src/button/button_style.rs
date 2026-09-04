@@ -188,6 +188,7 @@ impl ButtonStyle {
             background_color: base_background,
             border_color: base_border,
             border_thickness: self.border_thickness,
+            border_radius: None,
             content_color: self.label_color.resolve(scheme),
             padding: self.size.padding,
         };
@@ -249,6 +250,8 @@ pub struct ResolvedButtonStyle {
     pub border_color: Color,
     /// Border thickness in pixels.
     pub border_thickness: f32,
+    /// Optional explicit border radius.
+    pub border_radius: Option<f32>,
     /// Foreground color for label text and icons.
     pub content_color: Color,
     /// Container padding.
