@@ -7,7 +7,8 @@ use taffy::{
 };
 use theme::{MechanixTheme, WidgetState};
 use ui::widget;
-use ui::{Color, Damage, OnChange, Point, Rect, Render, RenderCommand, USize};
+use ui::widgets::{BorderColor, Div};
+use ui::{Color, Damage, OnChange, Point, Rect, Render, RenderCommand};
 
 use crate::Text;
 
@@ -24,22 +25,18 @@ pub struct Button {
 
 impl Render for Button {
     fn render(&self, layout: &taffy::Layout, abs_pos: Point) -> Vec<RenderCommand> {
-        let _radius = self
+        let radius = self
             .button_style
             .border_radius
             .unwrap_or_else(|| self.tokens.shape.radius_px(layout.size.height));
 
-        vec![RenderCommand::DrawQuad {
-            color: self.button_style.background_color,
-            border_color: self.button_style.border_color,
-            origin: abs_pos,
-            z: 0.0,
-            size: USize::new(layout.size.width, layout.size.height),
-            border_radius: 1.0, // TODO: use radius
-            border_thickness: self.button_style.border_thickness,
-            background: Color::TRANSPARENT,
-            is_opaque: true,
-        }]
+        let mut div = Div::new(self.style.clone(), ());
+        div.color = self.button_style.background_color;
+        div.border_color = BorderColor(self.button_style.border_color);
+        div.border_radius = 1.0;
+        div.border_thickness = self.button_style.border_thickness;
+
+        div.render(layout, abs_pos)
     }
 
     fn fill(&self) -> Color {
@@ -154,10 +151,8 @@ impl Button {
             } else {
                 self.tokens.border_color = Some(theme::ColorVariant::Outline);
                 self.tokens.label_color = theme::ColorVariant::OnPrimary;
-                self.tokens.hover_state_layer.color_variant =
-                    theme::ColorVariant::OnSurfaceVariant;
-                self.tokens.focus_state_layer.color_variant =
-                    theme::ColorVariant::OnSurfaceVariant;
+                self.tokens.hover_state_layer.color_variant = theme::ColorVariant::OnSurfaceVariant;
+                self.tokens.focus_state_layer.color_variant = theme::ColorVariant::OnSurfaceVariant;
                 self.tokens.pressed_state_layer.color_variant =
                     theme::ColorVariant::OnSurfaceVariant;
             }
