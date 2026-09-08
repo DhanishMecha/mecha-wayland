@@ -1,4 +1,6 @@
-use crate::{App, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Widget};
+use crate::{
+    App, Comp, CompMut, Component, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Widget,
+};
 
 /// What a handler sees: its own widget, its own handle, and a narrow window
 /// onto the rest of the app.
@@ -7,8 +9,8 @@ use crate::{App, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Widget};
 /// of the handler, so `me()` and the app-backed methods never alias, and is
 /// moved back when the context drops — also on unwind, so a panicking
 /// handler doesn't leave a hole in the tree. The app is private: a handler
-/// can read and write *other* widgets and resources, queue events and
-/// signals, and nothing else. Structural changes (spawn, remove, inserting
+/// can read and write *other* widgets, resources, and its own node's
+/// components, queue events and signals, and nothing else. Structural changes (spawn, remove, inserting
 /// or removing resources) are a system's job; a handler asks for them with
 /// [`Context::signal`].
 pub struct Context<'a, W: Widget> {
@@ -72,6 +74,41 @@ impl<'a, W: Widget> Context<'a, W> {
     /// An exclusive write to a resource. See [`App::resource_mut`].
     pub fn resource_mut<R: Resource>(&mut self) -> Option<ResMut<R>> {
         self.app.resource_mut()
+    }
+
+    /// A shared read of this node's `C`. Holds the whole `C` column, so it
+    /// blocks [`App::components_mut`] while alive. `None` if a writer holds
+    /// the column, or if this node was spawned while the column was shared
+    /// and is not visible in it yet.
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn component<C: Component>(&self) -> Option<Comp<C>> {
+        self.app.component_at(self.handle.id())
+    }
+
+    /// An exclusive write to this node's `C`. Holds the whole `C` column, so
+    /// every other lookup of `C` returns `None` while it is alive. `None` if
+    /// the column is already held by anyone, or if this node is not visible
+    /// in it yet.
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn component_mut<C: Component>(&mut self) -> Option<CompMut<C>> {
+        self.app.component_at_mut(self.handle.id())
+    }
+
+    /// Replace this node's `C`, returning the old value. `None`, and nothing
+    /// changes, under the same conditions as [`Context::component_mut`].
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn set_component<C: Component>(&mut self, component: C) -> Option<C> {
+        let mut current = self.component_mut::<C>()?;
+        Some(std::mem::replace(&mut *current, component))
     }
 }
 

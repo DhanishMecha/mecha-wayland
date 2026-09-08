@@ -16,6 +16,8 @@
 //!   attach children, register handlers, and reach resources.
 //! - A [`Resource`] is an app-wide singleton, one per type, kept beside the
 //!   tree. See [Resources](#resources).
+//! - A [`Component`] is per-node data: every node carries one value of
+//!   every registered component type. See [Components](#components).
 //!
 //! # Messages
 //!
@@ -51,6 +53,24 @@
 //! out; [`App::remove_resource`] returns `None` and changes nothing in
 //! either case. Drop the proxy and ask again. Only `insert_resource` panics,
 //! and only on a duplicate.
+//!
+//! # Components
+//!
+//! [`App::register_component`] gives every node, present and future, a
+//! `C::default()`. A component type is one *column*, a `Vec` mirroring the
+//! node arena, and columns are lent out whole with the resource rule:
+//! [`App::components`] hands out any number of shared [`Comps`] readers,
+//! [`App::components_mut`] one exclusive [`CompsMut`] writer, both indexed
+//! by `NodeId`. A handler or builder reaches only its own node's value,
+//! through [`Context::component`] / [`Spawner::component`] ([`Comp`]) and
+//! the `_mut` pair ([`CompMut`]); those hold the column too, so they count
+//! as its reader or writer.
+//!
+//! The tree may change while a column is lent out. The holder does not see
+//! nodes spawned or removed meanwhile; the change is applied when the
+//! column comes back. Lookups return `None` while lent out. Only two
+//! things panic: registering a type twice, and touching a type that was
+//! never registered.
 //!
 //! # Quick start
 //!
@@ -90,6 +110,7 @@
 //! ```
 
 mod app;
+mod component;
 mod context;
 mod event;
 mod id;
@@ -99,6 +120,7 @@ mod widget;
 mod widget_store;
 
 pub use app::{App, Error, Spawner, System};
+pub use component::{Comp, CompMut, Component, Comps, CompsMut};
 pub use context::Context;
 pub use event::{Event, Signal, Tick};
 pub use id::{Handle, NodeId};
@@ -107,7 +129,7 @@ pub use widget::{Widget, WidgetBuild};
 
 pub mod prelude {
     pub use crate::{
-        App, Context, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Spawner, Tick, Widget,
-        WidgetBuild,
+        App, Comp, CompMut, Component, Comps, CompsMut, Context, Event, Handle, NodeId, Res,
+        ResMut, Resource, Signal, Spawner, Tick, Widget, WidgetBuild,
     };
 }

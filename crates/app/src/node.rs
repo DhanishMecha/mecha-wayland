@@ -63,6 +63,11 @@ impl Nodes {
         (self.slots.len() as u64 - 1, 0)
     }
 
+    /// Number of slots, occupied or not. A component column is sized to it.
+    pub fn len(&self) -> u64 {
+        self.slots.len() as u64
+    }
+
     pub fn fill(&mut self, index: u64, node: Node) {
         let slot = &mut self.slots[index as usize];
         debug_assert!(slot.node.is_none());

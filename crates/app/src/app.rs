@@ -3,11 +3,13 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt;
 use std::marker::PhantomData;
 
+use crate::component::Components;
 use crate::node::{Handler, Node, Nodes};
 use crate::resource::Resources;
 use crate::widget_store::{AnyWidgetStore, WidgetStore, WidgetWrapper};
 use crate::{
-    Context, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Tick, Widget, WidgetBuild,
+    Comp, CompMut, Component, Comps, CompsMut, Context, Event, Handle, NodeId, Res, ResMut,
+    Resource, Signal, Tick, Widget, WidgetBuild,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +55,7 @@ pub struct App {
     /// Per signal type, a `Vec<System<S>>` behind `Any`.
     systems: HashMap<TypeId, Box<dyn Any>>,
     resources: Resources,
+    components: Components,
     events: VecDeque<Job>,
     signals: VecDeque<Job>,
     runner: fn(App),
@@ -94,6 +97,7 @@ impl App {
             root,
             systems: HashMap::new(),
             resources: Resources::new(),
+            components: Components::new(),
             events: VecDeque::new(),
             signals: VecDeque::new(),
             runner: default_runner,
@@ -143,10 +147,13 @@ impl App {
             .expect("parent validated above")
             .children
             .push(id);
+        // Before the builder runs, so it can reach its own components.
+        self.components.set(component_index, Some(id));
 
         let handle = Handle::new(id);
         let mut spawner = Spawner {
             app: self,
+            me: id,
             failed: None,
             _widget: PhantomData,
         };
@@ -202,6 +209,7 @@ impl App {
             if current.has_widget() {
                 self.widget_stores[current.widget_column() as usize].free(current.widget_index());
             }
+            self.components.set(current.component_index(), None);
             pending.extend(node.children);
         }
         Ok(())
@@ -278,6 +286,56 @@ impl App {
     /// inserted or it is lent out to any proxy right now.
     pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
         self.resources.remove()
+    }
+
+    // ── components ───────────────────────────────────────────────────────────
+
+    /// Give every node a `C`, now and for every node spawned later. Nodes
+    /// that already exist, the root included, get `C::default()`.
+    ///
+    /// Only the app registers: a column is app-wide state, like a system.
+    /// Every component accessor panics for a type that was never
+    /// registered, so do this at setup, before the first signal.
+    ///
+    /// # Panics
+    ///
+    /// If `C` is already registered.
+    pub fn register_component<C: Component>(&mut self) -> &mut Self {
+        self.components
+            .register::<C>(self.nodes.len(), self.nodes.live_ids());
+        self
+    }
+
+    /// A shared read of every node's `C`. Any number may be alive at once.
+    /// `None` if a [`CompsMut<C>`] is currently out.
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn components<C: Component>(&self) -> Option<Comps<C>> {
+        self.components.get()
+    }
+
+    /// An exclusive write to every node's `C`. `None` if a [`CompsMut<C>`]
+    /// is already out, or any [`Comps<C>`] / [`Comp<C>`] is alive. The
+    /// column leaves the map for the proxy's lifetime and returns when it
+    /// drops; spawns and removes in between are applied on the way back.
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn components_mut<C: Component>(&mut self) -> Option<CompsMut<C>> {
+        self.components.get_mut()
+    }
+
+    /// One node's `C`, shared. See [`Context::component`].
+    pub(crate) fn component_at<C: Component>(&self, id: NodeId) -> Option<Comp<C>> {
+        self.components.get_at(id)
+    }
+
+    /// One node's `C`, exclusive. See [`Context::component_mut`].
+    pub(crate) fn component_at_mut<C: Component>(&mut self, id: NodeId) -> Option<CompMut<C>> {
+        self.components.get_at_mut(id)
     }
 
     // ── systems ──────────────────────────────────────────────────────────────
@@ -456,12 +514,15 @@ impl App {
 }
 
 /// What a [`WidgetBuild`] gets to touch while it runs: attach children,
-/// register handlers, and read or write resources — nothing else.
+/// register handlers, read or write resources, and read or write its own
+/// node's components — nothing else.
 ///
 /// `W` is the widget being built. It is not used yet; it is there so later
 /// conveniences can be typed on the builder's own widget.
 pub struct Spawner<'a, W: Widget> {
     app: &'a mut App,
+    /// The node being built.
+    me: NodeId,
     failed: Option<Error>,
     _widget: PhantomData<fn() -> W>,
 }
@@ -532,5 +593,35 @@ impl<W: Widget> Spawner<'_, W> {
     /// registration-style bookkeeping.
     pub fn resource_mut<R: Resource>(&mut self) -> Option<ResMut<R>> {
         self.app.resource_mut()
+    }
+
+    /// A shared read of this node's `C`. See [`Context::component`].
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn component<C: Component>(&self) -> Option<Comp<C>> {
+        self.app.component_at(self.me)
+    }
+
+    /// An exclusive write to this node's `C`. See [`Context::component_mut`].
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn component_mut<C: Component>(&mut self) -> Option<CompMut<C>> {
+        self.app.component_at_mut(self.me)
+    }
+
+    /// Replace this node's `C`, returning the old value. The usual way for a
+    /// builder to configure its own node. `None`, and nothing changes, under
+    /// the same conditions as [`Spawner::component_mut`].
+    ///
+    /// # Panics
+    ///
+    /// If `C` was never registered.
+    pub fn set_component<C: Component>(&mut self, component: C) -> Option<C> {
+        let mut current = self.component_mut::<C>()?;
+        Some(std::mem::replace(&mut *current, component))
     }
 }
