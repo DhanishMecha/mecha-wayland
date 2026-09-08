@@ -4,6 +4,7 @@
 
 pub use app;
 pub use assets;
+pub use interactivity;
 pub use layout;
 pub use paint;
 pub use utils;
@@ -12,6 +13,7 @@ pub use window;
 
 pub mod prelude {
     pub use app::prelude::*;
+    pub use interactivity::prelude::*;
     pub use layout::prelude::*;
     pub use paint::prelude::*;
     pub use utils::prelude::*;

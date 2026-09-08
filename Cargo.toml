@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 app.workspace = true
 assets.workspace = true
+interactivity.workspace = true
 layout.workspace = true
 paint.workspace = true
 utils.workspace = true
@@ -19,6 +20,7 @@ window.workspace = true
 members = [
     "crates/app",
     "crates/assets",
+    "crates/interactivity",
     "crates/layout",
     "crates/paint",
     "crates/utils",
@@ -30,6 +32,7 @@ resolver = "2"
 [workspace.dependencies]
 app = { path = "crates/app" }
 assets = { path = "crates/assets" }
+interactivity = { path = "crates/interactivity" }
 layout = { path = "crates/layout" }
 paint = { path = "crates/paint" }
 utils = { path = "crates/utils" }

@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-app = { path = "../app" }
-wayland = { path = "../wayland", features = ["client"] }
-utils = { path = "../utils" }
+app = { workspace = true }
+layout = { workspace = true }
+utils = { workspace = true }
+
+[dev-dependencies]
+assets = { workspace = true }
+paint = { workspace = true }
+widgets = { workspace = true }
+window = { workspace = true }

@@ -290,6 +290,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "interactivity"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "assets",
+ "layout",
+ "paint",
+ "utils",
+ "widgets",
+ "window",
+]
+
+[[package]]
 name = "kurbo"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -333,6 +346,7 @@ version = "0.1.0"
 dependencies = [
  "app",
  "assets",
+ "interactivity",
  "layout",
  "paint",
  "utils",
