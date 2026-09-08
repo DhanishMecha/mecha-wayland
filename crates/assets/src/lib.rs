@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpriteRegion {
     pub x: f32,
     pub y: f32,
@@ -16,7 +16,7 @@ pub struct AtlasData {
     pub height: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
     pub x: f32,
     pub y: f32,
@@ -27,7 +27,7 @@ pub struct GlyphInfo {
     pub advance: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct BakedFont {
     pub atlas_id: AtlasId,
     pub size: f32,
@@ -43,7 +43,7 @@ impl BakedFont {
         let mut width = 0.0;
         for ch in text.chars() {
             let byte = ch as u32;
-            if byte < 32 || byte > 126 {
+            if !(32..=126).contains(&byte) {
                 continue;
             }
             let glyph = &self.glyphs[(byte - 32) as usize];

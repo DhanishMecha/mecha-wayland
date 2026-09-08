@@ -5,19 +5,39 @@ edition = "2024"
 
 [dependencies]
 app.workspace = true
-bytemuck.workspace = true
+assets.workspace = true
+layout.workspace = true
+paint.workspace = true
 utils.workspace = true
+widgets.workspace = true
+window.workspace = true
 
+# Only the new core and the modules rewritten against it are in the
+# workspace. The other directories under `crates/` are the previous stack,
+# parked until each is rewritten against `app`.
 [workspace]
 members = [
     "crates/app",
-  "crates/utils"
+    "crates/assets",
+    "crates/layout",
+    "crates/paint",
+    "crates/utils",
+    "crates/widgets",
+    "crates/window",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 app = { path = "crates/app" }
+assets = { path = "crates/assets" }
+layout = { path = "crates/layout" }
+paint = { path = "crates/paint" }
 utils = { path = "crates/utils" }
+widgets = { path = "crates/widgets" }
+window = { path = "crates/window" }
 
-glam = { version = "0.29", features = ["bytemuck"] }
+anyhow = "1"
+bitflags = "2"
 bytemuck = { version = "1.25.2", features = ["derive"] }
+glam = { version = "0.29", features = ["bytemuck"] }
+taffy = { version = "0.10.1", default-features = false, features = ["std", "flexbox", "block_layout"] }

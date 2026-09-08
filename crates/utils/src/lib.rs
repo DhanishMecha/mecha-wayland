@@ -375,6 +375,62 @@ impl Rect {
     }
 }
 
+// ── Edges ─────────────────────────────────────────────────────────────────────
+
+/// One value per side of a box: padding, margin, border, inset.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct Edges<T> {
+    pub top: T,
+    pub right: T,
+    pub bottom: T,
+    pub left: T,
+}
+
+impl<T: Copy> Edges<T> {
+    /// The same value on every side.
+    #[inline]
+    pub const fn all(v: T) -> Self {
+        Self {
+            top: v,
+            right: v,
+            bottom: v,
+            left: v,
+        }
+    }
+
+    /// `horizontal` on left and right, `vertical` on top and bottom.
+    #[inline]
+    pub const fn symmetric(horizontal: T, vertical: T) -> Self {
+        Self {
+            top: vertical,
+            right: horizontal,
+            bottom: vertical,
+            left: horizontal,
+        }
+    }
+
+    #[inline]
+    pub fn map<U>(self, f: impl Fn(T) -> U) -> Edges<U> {
+        Edges {
+            top: f(self.top),
+            right: f(self.right),
+            bottom: f(self.bottom),
+            left: f(self.left),
+        }
+    }
+}
+
+/// Clockwise from the top, as CSS reads.
+#[inline]
+pub const fn edges<T>(top: T, right: T, bottom: T, left: T) -> Edges<T> {
+    Edges {
+        top,
+        right,
+        bottom,
+        left,
+    }
+}
+
 pub mod prelude {
-    pub use crate::{Color, Rect, Point, Size};
+    pub use crate::{Color, Edges, Point, Rect, Size, edges};
 }
