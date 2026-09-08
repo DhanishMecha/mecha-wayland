@@ -1,76 +1,23 @@
-cargo-features = ["panic-immediate-abort"]
+[package]
+name = "mecha-wayland"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+app.workspace = true
+bytemuck.workspace = true
+utils.workspace = true
 
 [workspace]
 members = [
     "crates/app",
-    "crates/renderer",
-    "crates/assets",
-    "crates/io-ring",
-    "crates/timer",
-    "crates/wayland",
-    "crates/utils",
-    "crates/ui",
-    "crates/ui-macro",
-    "crates/animation",
-    "crates/interactivity",
-    "crates/window-manager",
-    "crates/counter",
+  "crates/utils"
 ]
 resolver = "2"
 
 [workspace.dependencies]
-# project
 app = { path = "crates/app" }
-window-manager = { path = "crates/window-manager" }
-io-ring = { path = "crates/io-ring" }
-wayland = { path = "crates/wayland" }
+utils = { path = "crates/utils" }
 
-# async / io
-io-uring = "0.7"
-nix = { version = "0.31", features = ["socket", "uio"] }
-libc = "0.2"
-
-# tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# error handling
-anyhow = "1"
-
-# image decoding
-png = "0.18"
-
-# codegen (build-dep only)
-quick-xml = { version = "0.39", features = ["serialize"] }
-serde = { version = "1", features = ["derive"] }
-toml = "0.8"
-crunch = "0.5"
-syn = "2.0.117"
-quote = "1.0.45"
-bitflags = "2.11.1"
-prettyplease = "0.2.37"
-proc-macro2 = "1.0"
-heck = "0.5.0"
-
-# graphics
-khronos-egl = { version = "6", features = ["dynamic"] }
-glow = "0.17"
 glam = { version = "0.29", features = ["bytemuck"] }
-
-# renderer extras
-bytemuck = { version = "1", features = ["derive"] }
-fontdue = "0.9"
-
-# layouting
-taffy = "0.10.1"
-
-[profile.dev]
-debug = 1
-split-debuginfo = "unpacked"
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "immediate-abort"
-strip = "symbols"
+bytemuck = { version = "1.25.2", features = ["derive"] }

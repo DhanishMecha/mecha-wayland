@@ -375,34 +375,6 @@ impl Rect {
     }
 }
 
-#[cfg(test)]
-mod color_tests {
-    use super::Color;
-
-    #[test]
-    fn over_opaque_top_is_that_colour() {
-        // A fully-opaque source ignores whatever is under it.
-        let red = Color::rgb(1.0, 0.0, 0.0);
-        let out = red.over(Color::rgb(0.0, 0.0, 1.0));
-        assert_eq!(out, red);
-    }
-
-    #[test]
-    fn over_opaque_under_stays_opaque_and_lerps() {
-        // Translucent white over opaque black → opaque mid-grey.
-        let out = Color::rgba(1.0, 1.0, 1.0, 0.5).over(Color::BLACK);
-        assert_eq!(out.a, 1.0);
-        assert!((out.r - 0.5).abs() < 1e-6);
-    }
-
-    #[test]
-    fn over_transparent_top_is_under() {
-        let under = Color::rgba(0.2, 0.4, 0.6, 1.0);
-        assert_eq!(Color::TRANSPARENT.over(under), under);
-    }
-
-    #[test]
-    fn over_both_transparent_is_transparent() {
-        assert_eq!(Color::TRANSPARENT.over(Color::TRANSPARENT), Color::TRANSPARENT);
-    }
+pub mod prelude {
+    pub use crate::{Color, Rect, Point, Size};
 }

@@ -3,15 +3,4 @@ name = "app"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-default = ["dynamic"]
-static = []
-dynamic = []
-tracing = []
-
 [dependencies]
-frunk = "0.4.4"
-app-macro = { path = "../app-macro" }
-
-[dev-dependencies]
-trybuild = "1"
