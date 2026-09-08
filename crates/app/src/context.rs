@@ -1,4 +1,4 @@
-use crate::{App, Event, Handle, NodeId, Signal, Widget};
+use crate::{App, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Widget};
 
 /// What a handler sees: its own widget, its own handle, and a narrow window
 /// onto the rest of the app.
@@ -7,9 +7,10 @@ use crate::{App, Event, Handle, NodeId, Signal, Widget};
 /// of the handler, so `me()` and the app-backed methods never alias, and is
 /// moved back when the context drops — also on unwind, so a panicking
 /// handler doesn't leave a hole in the tree. The app is private: a handler
-/// can read and write *other* widgets, queue events and signals, and nothing
-/// else. Structural changes (spawn, remove) are a system's job; a handler
-/// asks for them with [`Context::signal`].
+/// can read and write *other* widgets and resources, queue events and
+/// signals, and nothing else. Structural changes (spawn, remove, inserting
+/// or removing resources) are a system's job; a handler asks for them with
+/// [`Context::signal`].
 pub struct Context<'a, W: Widget> {
     app: &'a mut App,
     handle: Handle<W>,
@@ -61,6 +62,16 @@ impl<'a, W: Widget> Context<'a, W> {
     /// Queue `signal` for the systems. See [`App::signal`].
     pub fn signal<S: Signal>(&mut self, signal: S) {
         self.app.signal(signal)
+    }
+
+    /// A shared read of a resource. See [`App::resource`].
+    pub fn resource<R: Resource>(&self) -> Option<Res<R>> {
+        self.app.resource()
+    }
+
+    /// An exclusive write to a resource. See [`App::resource_mut`].
+    pub fn resource_mut<R: Resource>(&mut self) -> Option<ResMut<R>> {
+        self.app.resource_mut()
     }
 }
 

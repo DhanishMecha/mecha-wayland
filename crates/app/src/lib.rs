@@ -13,7 +13,9 @@
 //!   marker; the runtime never calls into one.
 //! - A [`WidgetBuild`] describes a widget, the subtree under it, and the
 //!   handlers wired to that subtree. It runs with a [`Spawner`] that can only
-//!   attach children and register handlers.
+//!   attach children, register handlers, and reach resources.
+//! - A [`Resource`] is an app-wide singleton, one per type, kept beside the
+//!   tree. See [Resources](#resources).
 //!
 //! # Messages
 //!
@@ -34,6 +36,21 @@
 //! [`App::flush`] drains them: events first, then one signal, then events
 //! again, until both are empty. [`App::run`] hands the app to a runner
 //! ([`App::set_runner`]); the default one loops `signal(Tick)`, `flush()`.
+//!
+//! # Resources
+//!
+//! [`App::insert_resource`] stores one value per type; [`App::resource`]
+//! hands out any number of shared [`Res`] readers, and [`App::resource_mut`]
+//! one exclusive [`ResMut`] writer. Neither proxy borrows the app, so a
+//! system can hold one and still spawn, emit, or look up widgets.
+//! [`Context`] and [`Spawner`] offer the same two lookups.
+//!
+//! The rule is the one widgets already follow: a value that is lent out is
+//! absent. `resource_mut` returns `None` while any `Res` of that type is
+//! alive; `resource` and `resource_mut` return `None` while a `ResMut` is
+//! out; [`App::remove_resource`] returns `None` and changes nothing in
+//! either case. Drop the proxy and ask again. Only `insert_resource` panics,
+//! and only on a duplicate.
 //!
 //! # Quick start
 //!
@@ -77,6 +94,7 @@ mod context;
 mod event;
 mod id;
 mod node;
+mod resource;
 mod widget;
 mod widget_store;
 
@@ -84,10 +102,12 @@ pub use app::{App, Error, Spawner, System};
 pub use context::Context;
 pub use event::{Event, Signal, Tick};
 pub use id::{Handle, NodeId};
+pub use resource::{Res, ResMut, Resource};
 pub use widget::{Widget, WidgetBuild};
 
 pub mod prelude {
     pub use crate::{
-        App, Context, Event, Handle, NodeId, Signal, Spawner, Tick, Widget, WidgetBuild,
+        App, Context, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Spawner, Tick, Widget,
+        WidgetBuild,
     };
 }

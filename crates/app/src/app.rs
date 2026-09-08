@@ -4,8 +4,11 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::node::{Handler, Node, Nodes};
+use crate::resource::Resources;
 use crate::widget_store::{AnyWidgetStore, WidgetStore, WidgetWrapper};
-use crate::{Context, Event, Handle, NodeId, Signal, Tick, Widget, WidgetBuild};
+use crate::{
+    Context, Event, Handle, NodeId, Res, ResMut, Resource, Signal, Tick, Widget, WidgetBuild,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -49,6 +52,7 @@ pub struct App {
     root: NodeId,
     /// Per signal type, a `Vec<System<S>>` behind `Any`.
     systems: HashMap<TypeId, Box<dyn Any>>,
+    resources: Resources,
     events: VecDeque<Job>,
     signals: VecDeque<Job>,
     runner: fn(App),
@@ -89,6 +93,7 @@ impl App {
             columns: HashMap::new(),
             root,
             systems: HashMap::new(),
+            resources: Resources::new(),
             events: VecDeque::new(),
             signals: VecDeque::new(),
             runner: default_runner,
@@ -240,6 +245,39 @@ impl App {
             None => None,
         };
         store.into_iter().flat_map(WidgetStore::iter_mut)
+    }
+
+    // ── resources ────────────────────────────────────────────────────────────
+
+    /// Store `resource` as the app's one `R`.
+    ///
+    /// # Panics
+    ///
+    /// If an `R` is already present — including one currently lent out to a
+    /// [`ResMut`]. A second value of a type is a bug, not a state to recover
+    /// from; [`App::remove_resource`] first if replacing is the intent.
+    pub fn insert_resource<R: Resource>(&mut self, resource: R) -> &mut Self {
+        self.resources.insert(resource);
+        self
+    }
+
+    /// A shared read of `R`. Any number may be alive at once. `None` if no
+    /// `R` was inserted or a [`ResMut<R>`] is currently out.
+    pub fn resource<R: Resource>(&self) -> Option<Res<R>> {
+        self.resources.get()
+    }
+
+    /// An exclusive write to `R`. `None` if no `R` was inserted, a
+    /// [`ResMut<R>`] is already out, or any [`Res<R>`] is alive. The value
+    /// leaves the map for the proxy's lifetime and returns when it drops.
+    pub fn resource_mut<R: Resource>(&mut self) -> Option<ResMut<R>> {
+        self.resources.get_mut()
+    }
+
+    /// Take `R` out for good. `None`, with nothing changed, if no `R` was
+    /// inserted or it is lent out to any proxy right now.
+    pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
+        self.resources.remove()
     }
 
     // ── systems ──────────────────────────────────────────────────────────────
@@ -417,8 +455,8 @@ impl App {
     }
 }
 
-/// What a [`WidgetBuild`] gets to touch while it runs: attach children and
-/// register handlers, nothing else.
+/// What a [`WidgetBuild`] gets to touch while it runs: attach children,
+/// register handlers, and read or write resources — nothing else.
 ///
 /// `W` is the widget being built. It is not used yet; it is there so later
 /// conveniences can be typed on the builder's own widget.
@@ -482,5 +520,17 @@ impl<W: Widget> Spawner<'_, W> {
                 handler(&mut ctx, event);
             }),
         });
+    }
+
+    /// A shared read of a resource. See [`App::resource`].
+    pub fn resource<R: Resource>(&self) -> Option<Res<R>> {
+        self.app.resource()
+    }
+
+    /// An exclusive write to a resource. See [`App::resource_mut`]. A builder
+    /// writing a resource is a side effect beyond its own subtree; keep it to
+    /// registration-style bookkeeping.
+    pub fn resource_mut<R: Resource>(&mut self) -> Option<ResMut<R>> {
+        self.app.resource_mut()
     }
 }
