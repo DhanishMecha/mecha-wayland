@@ -1,27 +1,27 @@
-use app::prelude::*;
+use app::Signal;
 
 use super::{WlCallback, WlDisplay, WlRegistry, read_string, read_u32};
-use crate::{Handle, Interface, RawWaylandEvent, Wayland, helper};
+use crate::{Proxy, RawWaylandEvent, Wayland, helper};
 
 // ── wl_display events ─────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub enum WlDisplayEvent {
     Error {
-        sender: Handle<WlDisplay>,
+        sender: Proxy<WlDisplay>,
         object_id: crate::ObjectId,
         code: u32,
         message: String,
     },
     DeleteId {
-        sender: Handle<WlDisplay>,
+        sender: Proxy<WlDisplay>,
         id: u32,
     },
 }
-impl Event for WlDisplayEvent {}
+impl Signal for WlDisplayEvent {}
 
 impl WlDisplayEvent {
-    pub fn parse(event: &RawWaylandEvent, wayland: &mut Wayland) -> Option<Self> {
+    pub fn parse(event: &RawWaylandEvent, wayland: &Wayland) -> Option<Self> {
         let sender = wayland.get_handle::<WlDisplay>(event.object_id)?;
         let data = &event.data;
         let mut o = 0;
@@ -53,14 +53,14 @@ pub enum WlDisplayError {
 #[derive(Debug)]
 pub enum WlCallbackEvent {
     Done {
-        sender: Handle<WlCallback>,
+        sender: Proxy<WlCallback>,
         callback_data: u32,
     },
 }
-impl Event for WlCallbackEvent {}
+impl Signal for WlCallbackEvent {}
 
 impl WlCallbackEvent {
-    pub fn parse(event: &RawWaylandEvent, wayland: &mut Wayland) -> Option<Self> {
+    pub fn parse(event: &RawWaylandEvent, wayland: &Wayland) -> Option<Self> {
         let sender = wayland.get_handle::<WlCallback>(event.object_id)?;
         let data = &event.data;
         let mut o = 0;
@@ -79,20 +79,20 @@ impl WlCallbackEvent {
 #[derive(Debug)]
 pub enum WlRegistryEvent {
     Global {
-        sender: Handle<WlRegistry>,
+        sender: Proxy<WlRegistry>,
         name: u32,
         interface: String,
         version: u32,
     },
     GlobalDelete {
-        sender: Handle<WlRegistry>,
+        sender: Proxy<WlRegistry>,
         name: u32,
     },
 }
-impl Event for WlRegistryEvent {}
+impl Signal for WlRegistryEvent {}
 
 impl WlRegistryEvent {
-    pub fn parse(event: &RawWaylandEvent, wayland: &mut Wayland) -> Option<Self> {
+    pub fn parse(event: &RawWaylandEvent, wayland: &Wayland) -> Option<Self> {
         let sender = wayland.get_handle::<WlRegistry>(event.object_id)?;
         let data = &event.data;
         let mut o = 0;
@@ -112,31 +112,30 @@ impl WlRegistryEvent {
     }
 }
 
-// ── Handle<T> request methods (client sends requests to server) ───────────────
+// ── requests ──────────────────────────────────────────────────────────────────
 
-impl Handle<WlDisplay> {
-    pub fn sync(&self) -> Handle<WlCallback> {
-        let cb: Handle<WlCallback> = self.proxy.alloc_handle();
+impl Proxy<WlDisplay> {
+    pub fn sync(&self) -> Proxy<WlCallback> {
+        let cb: Proxy<WlCallback> = self.conn.alloc_handle();
         let sender_id = self.object_id().expect("dead handle").0;
         let cb_id = cb.object_id().expect("just allocated").0;
-        self.proxy
-            .write_raw(sender_id, 0, &cb_id.to_ne_bytes(), &[]);
+        self.conn.write_raw(sender_id, 0, &cb_id.to_ne_bytes(), &[]);
         cb
     }
 
-    pub fn get_registry(&self) -> Handle<WlRegistry> {
-        let reg: Handle<WlRegistry> = self.proxy.alloc_handle();
+    pub fn get_registry(&self) -> Proxy<WlRegistry> {
+        let reg: Proxy<WlRegistry> = self.conn.alloc_handle();
         let sender_id = self.object_id().expect("dead handle").0;
         let reg_id = reg.object_id().expect("just allocated").0;
-        self.proxy
+        self.conn
             .write_raw(sender_id, 1, &reg_id.to_ne_bytes(), &[]);
         reg
     }
 }
 
-impl Handle<WlRegistry> {
-    pub fn bind<T: crate::Interface>(&self, name: u32, version: u32) -> Handle<T> {
-        let new_obj: Handle<T> = self.proxy.alloc_handle();
+impl Proxy<WlRegistry> {
+    pub fn bind<T: crate::Interface>(&self, name: u32, version: u32) -> Proxy<T> {
+        let new_obj: Proxy<T> = self.conn.alloc_handle();
         let sender_id = self.object_id().expect("dead handle").0;
         let new_id = new_obj.object_id().expect("just allocated").0;
 
@@ -146,34 +145,7 @@ impl Handle<WlRegistry> {
         body.extend_from_slice(&version.to_ne_bytes());
         body.extend_from_slice(&new_id.to_ne_bytes());
 
-        self.proxy.write_raw(sender_id, 0, &body, &[]);
+        self.conn.write_raw(sender_id, 0, &body, &[]);
         new_obj
     }
-}
-
-// ── module ────────────────────────────────────────────────────────────────────
-
-pub fn client_module<S>() -> impl app::RegisteredModule<Wayland, S> {
-    app::Module::new()
-        .on(|wayland: &mut Wayland, raw: &RawWaylandEvent| {
-            if wayland.get_interface(raw.object_id) == Some(WlDisplay::NAME) {
-                WlDisplayEvent::parse(raw, wayland)
-            } else {
-                None
-            }
-        })
-        .on(|wayland: &mut Wayland, raw: &RawWaylandEvent| {
-            if wayland.get_interface(raw.object_id) == Some(WlCallback::NAME) {
-                WlCallbackEvent::parse(raw, wayland)
-            } else {
-                None
-            }
-        })
-        .on(|wayland: &mut Wayland, raw: &RawWaylandEvent| {
-            if wayland.get_interface(raw.object_id) == Some(WlRegistry::NAME) {
-                WlRegistryEvent::parse(raw, wayland)
-            } else {
-                None
-            }
-        })
 }

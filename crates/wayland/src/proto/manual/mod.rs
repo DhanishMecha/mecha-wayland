@@ -1,14 +1,12 @@
-pub mod client;
-#[cfg(feature = "server")]
-pub mod server;
+//! The three interfaces the generator leaves out: the display, the registry
+//! and the callback. Their wire format is fixed and their requests are the
+//! connection's own.
 
-pub use client::client_module;
-#[cfg(feature = "server")]
-pub use server::server_dispatch_module;
+pub mod client;
 
 use crate::Interface;
 
-// ── Read helpers shared by client and server parse functions ──────────────────
+// ── Read helpers shared with the generated parse functions ────────────────────
 
 pub(crate) fn read_u32(data: &[u8], offset: &mut usize) -> Option<u32> {
     let bytes = data.get(*offset..*offset + 4)?;
@@ -25,8 +23,6 @@ pub(crate) fn read_string(data: &[u8], offset: &mut usize) -> Option<String> {
     Some(s.to_owned())
 }
 
-// ── wl_display ────────────────────────────────────────────────────────────────
-
 #[derive(Debug)]
 pub struct WlDisplay;
 impl Interface for WlDisplay {
@@ -34,16 +30,12 @@ impl Interface for WlDisplay {
     const VERSION: u32 = 1;
 }
 
-// ── wl_callback ───────────────────────────────────────────────────────────────
-
 #[derive(Debug)]
 pub struct WlCallback;
 impl Interface for WlCallback {
     const NAME: &'static str = "wl_callback";
     const VERSION: u32 = 1;
 }
-
-// ── wl_registry ───────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub struct WlRegistry;

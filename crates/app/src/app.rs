@@ -578,7 +578,7 @@ impl<W: Widget> Spawner<'_, W> {
     ///
     /// `handler` is a plain `fn`: it cannot capture. Whatever it needs lives
     /// in the widget, or arrives in the event.
-    pub fn on<V: Widget, E: Event>(&mut self, target: Handle<V>, handler: fn(&mut Context<V>, &E)) {
+    pub fn on<V: Widget, Wid: Widget, E: Event>(&mut self, target: Handle<V>, handler: fn(&mut Context<Wid>, &E)) {
         if self.failed.is_some() {
             return;
         }
@@ -595,7 +595,7 @@ impl<W: Widget> Spawner<'_, W> {
                     .expect("handler selected by event TypeId");
                 // The context holds the widget and returns it on drop,
                 // unwinding included.
-                let Some(mut ctx) = Context::take(app, Handle::<V>::new(id)) else {
+                let Some(mut ctx) = Context::take(app, Handle::<Wid>::new(id)) else {
                     return;
                 };
                 handler(&mut ctx, event);

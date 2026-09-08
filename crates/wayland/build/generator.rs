@@ -29,9 +29,10 @@ pub fn generate<P: AsRef<Path>>(paths: &[P]) {
 
     let shared = quote! {
         #[allow(unused_imports, dead_code, unused_variables, unused_mut, non_camel_case_types)]
-        use crate::{Handle, Interface, ObjectId, RawWaylandEvent, Wayland};
+        use crate::{Proxy, Interface, ObjectId, RawWaylandEvent, Wayland};
         use super::manual::{#(#excluded_idents),*};
-        use app::prelude::*;
+        use super::manual::client::{WlCallbackEvent, WlDisplayEvent, WlRegistryEvent};
+        use app::{App, Signal};
         use bitflags::bitflags;
 
         #read_helpers
@@ -40,33 +41,19 @@ pub fn generate<P: AsRef<Path>>(paths: &[P]) {
     write_formatted(out("generated_shared.rs"), shared);
 
     // ── generated_client.rs ───────────────────────────────────────────────────
-    // XxxEvent enums + parse, Handle<T> request-sending methods, client_module().
-    // No use statements — shared definitions are already in scope.
+    // XxxEvent enums + parse, Proxy<T> request-sending methods, dispatch(),
+    // bind_global(). No use statements — shared definitions are in scope.
 
     let client_items: Vec<TokenStream> = interfaces.iter().map(|i| gen_client(i)).collect();
-    let client_mod = gen_client_module(&interfaces);
+    let dispatch = gen_dispatch(&interfaces);
+    let bind = gen_bind_global(&interfaces);
 
     let client = quote! {
         #(#client_items)*
-        #client_mod
+        #dispatch
+        #bind
     };
     write_formatted(out("generated_client.rs"), client);
-
-    // ── generated_server.rs ───────────────────────────────────────────────────
-    // XxxRequest enums + parse, Handle<T> event-sending methods, server_dispatch_module().
-    // Only adds server-specific imports on top of what shared already provided.
-
-    let server_items: Vec<TokenStream> = interfaces.iter().map(|i| gen_server(i)).collect();
-    let server_mod = gen_server_module(&interfaces);
-
-    let server = quote! {
-        use crate::server::{ClientRawEvent, WaylandServer};
-        use app::RegisteredModule;
-
-        #(#server_items)*
-        #server_mod
-    };
-    write_formatted(out("generated_server.rs"), server);
 }
 
 fn write_formatted(path: std::path::PathBuf, code: TokenStream) {
@@ -239,7 +226,7 @@ fn gen_shared(iface: &Interface) -> TokenStream {
     }
 }
 
-// ── client: XxxEvent enum + parse + Handle<T> request methods ─────────────────
+// ── client: XxxEvent enum + parse + Proxy<T> request methods ─────────────────
 
 fn gen_client(iface: &Interface) -> TokenStream {
     let tname = type_ident(&iface.name);
@@ -260,31 +247,6 @@ fn gen_client(iface: &Interface) -> TokenStream {
 
     quote! {
         #event_tokens
-        #handle_tokens
-    }
-}
-
-// ── server: XxxRequest enum + parse + Handle<T> event methods ─────────────────
-
-fn gen_server(iface: &Interface) -> TokenStream {
-    let tname = type_ident(&iface.name);
-    let requests: Vec<&Message> = iface.requests().collect();
-    let events: Vec<&Message> = iface.events().collect();
-
-    let request_tokens = if !requests.is_empty() {
-        gen_request_enum(&iface.name, &tname, &requests)
-    } else {
-        quote! {}
-    };
-
-    let handle_tokens = if !events.is_empty() {
-        gen_server_handle_impl(&iface.name, &tname, &events)
-    } else {
-        quote! {}
-    };
-
-    quote! {
-        #request_tokens
         #handle_tokens
     }
 }
@@ -396,73 +358,6 @@ fn gen_enum_def(iface_name: &str, en: &EnumDef) -> TokenStream {
     }
 }
 
-// ── XxxRequest enum + parse ───────────────────────────────────────────────────
-
-fn gen_request_enum(iface_name: &str, tname: &Ident, requests: &[&Message]) -> TokenStream {
-    let ename = id(&format!("{tname}Request"));
-
-    let variants: Vec<TokenStream> = requests
-        .iter()
-        .map(|req| {
-            let vname = id(&variant_name(&req.name));
-            let variant_doc = doc_comment(req.description.as_ref());
-            let fields: Vec<TokenStream> = req
-                .args
-                .iter()
-                .map(|a| {
-                    let fname = id(&a.name);
-                    let ftype = parsed_field_type(iface_name, a);
-                    let field_doc = doc_summary(a.summary.as_deref());
-                    quote! { #field_doc #fname: #ftype }
-                })
-                .collect();
-            quote! {
-                #variant_doc
-                #vname { sender: Handle<#tname>, #(#fields),* },
-            }
-        })
-        .collect();
-
-    let arms: Vec<TokenStream> = requests
-        .iter()
-        .enumerate()
-        .map(|(opcode, req)| {
-            let opcode = opcode as u32;
-            let vname = id(&variant_name(&req.name));
-            let stmts = gen_parse_stmts(iface_name, &req.args);
-            let field_names: Vec<Ident> = req.args.iter().map(|a| id(&a.name)).collect();
-            let ret = quote! { Some(#ename::#vname { sender: sender.clone(), #(#field_names),* }) };
-            quote! {
-                #opcode => {
-                    #stmts
-                    #ret
-                }
-            }
-        })
-        .collect();
-
-    quote! {
-        #[derive(Debug)]
-        pub enum #ename {
-            #(#variants)*
-        }
-
-        impl Event for #ename {}
-
-        impl #ename {
-            pub fn parse(event: &RawWaylandEvent, wayland: &mut Wayland) -> Option<Self> {
-                let sender = wayland.get_handle::<#tname>(event.object_id)?;
-                let data = &event.data;
-                let mut o = 0usize;
-                match event.opcode {
-                    #(#arms)*
-                    _ => None,
-                }
-            }
-        }
-    }
-}
-
 // ── XxxEvent enum + parse ─────────────────────────────────────────────────────
 
 fn gen_event_enum(iface_name: &str, tname: &Ident, events: &[&Message]) -> TokenStream {
@@ -485,7 +380,7 @@ fn gen_event_enum(iface_name: &str, tname: &Ident, events: &[&Message]) -> Token
                 .collect();
             quote! {
                 #variant_doc
-                #vname { sender: Handle<#tname>, #(#fields),* },
+                #vname { sender: Proxy<#tname>, #(#fields),* },
             }
         })
         .collect();
@@ -514,10 +409,10 @@ fn gen_event_enum(iface_name: &str, tname: &Ident, events: &[&Message]) -> Token
             #(#variants)*
         }
 
-        impl Event for #ename {}
+        impl Signal for #ename {}
 
         impl #ename {
-            pub fn parse(event: &RawWaylandEvent, wayland: &mut Wayland) -> Option<Self> {
+            pub fn parse(event: &RawWaylandEvent, wayland: &Wayland) -> Option<Self> {
                 let sender = wayland.get_handle::<#tname>(event.object_id)?;
                 let data = &event.data;
                 let mut o = 0usize;
@@ -530,42 +425,25 @@ fn gen_event_enum(iface_name: &str, tname: &Ident, events: &[&Message]) -> Token
     }
 }
 
-// ── client: Handle<T> request-sending methods ─────────────────────────────────
+// ── client: Proxy<T> request-sending methods ─────────────────────────────────
 
 fn gen_client_handle_impl(iface_name: &str, tname: &Ident, requests: &[&Message]) -> TokenStream {
     let methods: Vec<TokenStream> = requests
         .iter()
         .enumerate()
-        .map(|(opcode, req)| gen_send_method(iface_name, opcode as u16, req, true))
+        .map(|(opcode, req)| gen_send_method(iface_name, opcode as u16, req))
         .collect();
 
     quote! {
-        impl Handle<#tname> {
+        impl Proxy<#tname> {
             #(#methods)*
         }
     }
 }
 
-// ── server: Handle<T> event-sending methods ───────────────────────────────────
-
-fn gen_server_handle_impl(iface_name: &str, tname: &Ident, events: &[&Message]) -> TokenStream {
-    let methods: Vec<TokenStream> = events
-        .iter()
-        .enumerate()
-        .map(|(opcode, ev)| gen_send_method(iface_name, opcode as u16, ev, false))
-        .collect();
-
-    quote! {
-        impl Handle<#tname> {
-            #(#methods)*
-        }
-    }
-}
-
-// Generates a wire-send method for either a client request or a server event.
-// `is_request` controls whether new_id args use alloc_handle (true → client allocates,
-// false → server allocates from 0xFF000000+ range seeded in Wayland::new_server).
-fn gen_send_method(iface_name: &str, opcode: u16, msg: &Message, is_request: bool) -> TokenStream {
+// Generates a request method on `Proxy<T>`: encodes the body and buffers it
+// on the connection. A `new_id` argument allocates the handle and returns it.
+fn gen_send_method(iface_name: &str, opcode: u16, msg: &Message) -> TokenStream {
     let mname = id(&msg.name);
 
     let new_id_arg = msg
@@ -589,7 +467,7 @@ fn gen_send_method(iface_name: &str, opcode: u16, msg: &Message, is_request: boo
         let fname_id = id(&format!("{}_id", a.name));
         let t = type_ident(a.interface.as_ref().unwrap());
         quote! {
-            let #fname: Handle<#t> = self.proxy.alloc_handle();
+            let #fname: Proxy<#t> = self.conn.alloc_handle();
             let #fname_id = #fname.object_id().expect("just allocated").0;
         }
     });
@@ -617,15 +495,15 @@ fn gen_send_method(iface_name: &str, opcode: u16, msg: &Message, is_request: boo
             #body_init
             #fds_init
             #(#encode)*
-            self.proxy.write_raw(sender_id, #opcode, #body_ref, #fds_ref);
+            self.conn.write_raw(sender_id, #opcode, #body_ref, #fds_ref);
         }
     } else {
-        quote! { self.proxy.write_raw(sender_id, #opcode, &[], &[]); }
+        quote! { self.conn.write_raw(sender_id, #opcode, &[], &[]); }
     };
 
     let ret_type = new_id_arg.map(|a| {
         let t = type_ident(a.interface.as_ref().unwrap());
-        quote! { -> Handle<#t> }
+        quote! { -> Proxy<#t> }
     });
 
     let ret_val = new_id_arg.map(|a| {
@@ -660,7 +538,6 @@ fn gen_send_method(iface_name: &str, opcode: u16, msg: &Message, is_request: boo
     };
 
     let method_doc = doc_comment(msg.description.as_ref());
-    let _ = is_request; // both sides use identical wire encoding
 
     quote! {
         #method_doc
@@ -855,7 +732,7 @@ fn parsed_field_type(iface_name: &str, arg: &Arg) -> TokenStream {
         ArgType::NewId => {
             if let Some(ref iface) = arg.interface {
                 let t = type_ident(iface);
-                quote! { Handle<#t> }
+                quote! { Proxy<#t> }
             } else {
                 quote! { ObjectId }
             }
@@ -864,9 +741,9 @@ fn parsed_field_type(iface_name: &str, arg: &Arg) -> TokenStream {
             if let Some(ref iface) = arg.interface {
                 let t = type_ident(iface);
                 if arg.allow_null {
-                    quote! { Option<Handle<#t>> }
+                    quote! { Option<Proxy<#t>> }
                 } else {
-                    quote! { Handle<#t> }
+                    quote! { Proxy<#t> }
                 }
             } else if arg.allow_null {
                 quote! { Option<ObjectId> }
@@ -903,9 +780,9 @@ fn send_param_type(iface_name: &str, arg: &Arg) -> TokenStream {
             if let Some(ref iface) = arg.interface {
                 let t = type_ident(iface);
                 if arg.allow_null {
-                    quote! { Option<&Handle<#t>> }
+                    quote! { Option<&Proxy<#t>> }
                 } else {
-                    quote! { &Handle<#t> }
+                    quote! { &Proxy<#t> }
                 }
             } else if arg.allow_null {
                 quote! { Option<ObjectId> }
@@ -916,64 +793,70 @@ fn send_param_type(iface_name: &str, arg: &Arg) -> TokenStream {
     }
 }
 
-// ── client_module ─────────────────────────────────────────────────────────────
+// ── dispatch ──────────────────────────────────────────────────────────────────
 
-fn gen_client_module(interfaces: &[&Interface]) -> TokenStream {
-    let handlers: Vec<TokenStream> = interfaces
+fn gen_dispatch(interfaces: &[&Interface]) -> TokenStream {
+    let arms: Vec<TokenStream> = interfaces
         .iter()
         .filter(|i| i.events().next().is_some())
         .map(|i| {
             let tname = type_ident(&i.name);
             let ename = id(&format!("{tname}Event"));
             quote! {
-                .on(|wayland: &mut Wayland, raw: &RawWaylandEvent| {
-                    if wayland.get_interface(raw.object_id) == Some(#tname::NAME) {
-                        #ename::parse(raw, wayland)
-                    } else {
-                        None
-                    }
-                })
+                Some(#tname::NAME) => #ename::parse(raw, &wayland).map(|ev| Box::new(move |app: &mut App| app.signal(ev)) as Job),
             }
         })
         .collect();
 
     quote! {
-        pub fn client_module<S>() -> impl app::RegisteredModule<Wayland, S> {
-            let m = app::Module::new();
-            let m = m #(#handlers)*;
-            m
+        type Job = Box<dyn FnOnce(&mut App)>;
+
+        /// The interface of the sending object picks the parser, and the
+        /// typed event is queued as a signal for the systems. An object the
+        /// connection no longer knows is a message for something already
+        /// deleted, and is dropped.
+        pub fn dispatch(app: &mut App, raw: &RawWaylandEvent) {
+            let wayland = app.resource::<Wayland>().expect("no Wayland writer is alive while a read is dispatched");
+            let interface = wayland.get_interface(raw.object_id);
+            let job: Option<Job> = match interface {
+                Some(WlDisplay::NAME) => WlDisplayEvent::parse(raw, &wayland).map(|ev| Box::new(move |app: &mut App| app.signal(ev)) as Job),
+                Some(WlCallback::NAME) => WlCallbackEvent::parse(raw, &wayland).map(|ev| Box::new(move |app: &mut App| app.signal(ev)) as Job),
+                Some(WlRegistry::NAME) => WlRegistryEvent::parse(raw, &wayland).map(|ev| Box::new(move |app: &mut App| app.signal(ev)) as Job),
+                #(#arms)*
+                _ => None,
+            };
+            drop(wayland);
+            if let Some(job) = job {
+                job(app);
+            }
         }
     }
 }
 
-// ── server_dispatch_module ────────────────────────────────────────────────────
+// ── bind_global ───────────────────────────────────────────────────────────────
+// Binds an advertised global if this crate knows its interface, at the lower
+// of the advertised version and ours, and stores the handle in `Globals`.
 
-fn gen_server_module(interfaces: &[&Interface]) -> TokenStream {
-    let handlers: Vec<TokenStream> = interfaces
+fn gen_bind_global(interfaces: &[&Interface]) -> TokenStream {
+    let arms: Vec<TokenStream> = interfaces
         .iter()
-        .filter(|i| i.requests().next().is_some())
         .map(|i| {
             let tname = type_ident(&i.name);
-            let rname = id(&format!("{tname}Request"));
             quote! {
-                .on(|server: &mut WaylandServer, ev: &ClientRawEvent| {
-                    let mut inner = server.data.borrow_mut();
-                    let client = inner.clients.get_mut(&ev.client_id)?;
-                    if client.conn.get_interface(ev.raw.object_id) == Some(#tname::NAME) {
-                        #rname::parse(&ev.raw, &mut client.conn)
-                    } else {
-                        None
-                    }
-                })
+                #tname::NAME => {
+                    let h: Proxy<#tname> = registry.bind(name, version.min(#tname::VERSION));
+                    app.resource_mut::<crate::Globals>().expect("no Globals holder is alive while a global is bound").insert(h);
+                }
             }
         })
         .collect();
 
     quote! {
-        pub fn server_dispatch_module<S>() -> impl RegisteredModule<WaylandServer, S> {
-            let m = app::Module::new();
-            let m = m #(#handlers)*;
-            m
+        pub fn bind_global(app: &mut App, registry: &Proxy<WlRegistry>, name: u32, interface: &str, version: u32) {
+            match interface {
+                #(#arms)*
+                _ => {}
+            }
         }
     }
 }

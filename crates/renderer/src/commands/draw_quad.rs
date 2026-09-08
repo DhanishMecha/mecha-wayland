@@ -42,9 +42,17 @@ impl Command for DrawQuad {
         // The flat interior goes opaque when it composites to a solid colour and
         // the author hasn't opted out. `over` collapses to `color` when the fill
         // is already opaque, so a natively-opaque quad behaves exactly as before.
+        // The interior stops where the border ring begins as well as where
+        // the corners round off; otherwise it would sit above the border in
+        // the depth buffer and the ring would never show.
         let interior = self.color.over(self.background);
         if self.is_opaque && interior.a >= 1.0 {
-            let r = self.border_radius;
+            let border = if border_visible {
+                self.border_thickness
+            } else {
+                0.0
+            };
+            let r = self.border_radius.max(border);
             let inner_w = self.size.width() - 2.0 * r;
             let inner_h = self.size.height() - 2.0 * r;
             if inner_w > 0.0 && inner_h > 0.0 {

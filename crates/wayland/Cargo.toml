@@ -5,19 +5,11 @@ edition = "2024"
 build = "build/build.rs"
 
 [dependencies]
-io-ring.workspace = true
-app.workspace = true
+app = { workspace = true }
+ring = { workspace = true }
 io-uring = { workspace = true }
 libc = { workspace = true }
 bitflags = { workspace = true }
-
-[features]
-client = []
-server = []
-
-[[example]]
-name = "shm_window"
-required-features = ["client"]
 
 [build-dependencies]
 serde = { workspace = true }

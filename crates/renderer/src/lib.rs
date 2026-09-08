@@ -17,6 +17,13 @@ pub use texture::{TextureFormat, TextureId};
 use crate::commands::{Command, CommandQueueRegistry, RenderContext};
 pub mod commands;
 
+pub mod module;
+pub use module::{Render, RenderModule};
+
+pub mod prelude {
+    pub use crate::module::{Render, RenderModule};
+}
+
 pub use utils::Rect;
 
 // ── EGL platform extension ─────────────────────────────────────────────────
@@ -422,8 +429,18 @@ impl Renderer {
         Ok(texture_id)
     }
 
+    /// The texture an uploaded atlas became; `None` for one never given to
+    /// [`upload_atlas`](Renderer::upload_atlas).
+    pub fn texture_id(&self, atlas_id: assets::AtlasId) -> Option<TextureId> {
+        self.atlas_map.get(&atlas_id).copied()
+    }
+
+    /// # Panics
+    ///
+    /// If the atlas was never uploaded; see [`texture_id`](Renderer::texture_id).
     pub fn get_texture_id(&self, atlas_id: assets::AtlasId) -> TextureId {
-        *self.atlas_map.get(&atlas_id).expect("atlas not uploaded")
+        self.texture_id(atlas_id)
+            .unwrap_or_else(|| panic!("atlas {atlas_id:?} was never uploaded"))
     }
 
     /// Compile the opaque (Shader A) and translucent (Shader B) programs. Call
