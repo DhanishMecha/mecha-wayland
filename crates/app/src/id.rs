@@ -1,4 +1,6 @@
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::marker::PhantomData;
 
 /// Identifies one node in an [`App`](crate::App) tree.
 ///
@@ -14,6 +16,9 @@ use std::fmt;
 /// An id stays valid until its node is removed. Every accessor on `App` that
 /// takes a `NodeId` returns `None`/`Err` for an id whose node is gone, even if
 /// the slot has since been reused — the `generation` field is what catches that.
+///
+/// A [`Handle`] is a `NodeId` that also remembers the widget type; every
+/// method that takes a `NodeId` accepts a `Handle` too.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId {
     widget_column: u64,
@@ -87,6 +92,77 @@ impl fmt::Debug for NodeId {
     }
 }
 
+/// A [`NodeId`] that remembers which widget type lives at the node.
+///
+/// Returned by [`App::spawn`](crate::App::spawn) and
+/// [`Spawner::child`](crate::Spawner::child), and required by
+/// [`Spawner::on`](crate::Spawner::on) and [`Context::at`](crate::Context::at)
+/// so the widget type of a handler or lookup is checked at compile time.
+///
+/// `Copy` regardless of `W`. Converts into a `NodeId` with [`Handle::id`] or
+/// `.into()`, so anything that takes a `NodeId` takes a handle.
+pub struct Handle<W> {
+    id: NodeId,
+    _widget: PhantomData<fn() -> W>,
+}
+
+impl<W> Handle<W> {
+    pub(crate) const INVALID: Handle<W> = Handle::new(NodeId::INVALID);
+
+    pub(crate) const fn new(id: NodeId) -> Self {
+        Self {
+            id,
+            _widget: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub const fn id(self) -> NodeId {
+        self.id
+    }
+}
+
+impl<W> From<Handle<W>> for NodeId {
+    fn from(h: Handle<W>) -> NodeId {
+        h.id
+    }
+}
+
+// Manual impls: derives would add `W: Copy` etc. bounds, but the phantom
+// carries no `W` value.
+impl<W> Clone for Handle<W> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<W> Copy for Handle<W> {}
+impl<W> PartialEq for Handle<W> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl<W> Eq for Handle<W> {}
+impl<W> Hash for Handle<W> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
+}
+impl<W> PartialOrd for Handle<W> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl<W> Ord for Handle<W> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+impl<W> fmt::Debug for Handle<W> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Handle<{}>({:?})", std::any::type_name::<W>(), self.id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,5 +173,15 @@ mod tests {
         assert!(!root.has_widget());
         assert!(NodeId::new(0, 0, 1, 0).has_widget());
         assert_ne!(root, NodeId::INVALID);
+    }
+
+    #[test]
+    fn handle_is_copy_and_converts() {
+        struct NotCopy(#[allow(dead_code)] String);
+        let h: Handle<NotCopy> = Handle::new(NodeId::new(0, 0, 1, 0));
+        let h2 = h;
+        assert_eq!(h, h2);
+        let id: NodeId = h.into();
+        assert_eq!(id, h.id());
     }
 }

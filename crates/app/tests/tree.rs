@@ -12,7 +12,7 @@ impl Widget for Text {}
 struct DivBuilder;
 impl WidgetBuild for DivBuilder {
     type Widget = Div;
-    fn spawn(self, _me: NodeId, _s: &mut Spawner) -> Div {
+    fn spawn(self, _me: Handle<Div>, _s: &mut Spawner<Div>) -> Div {
         Div
     }
 }
@@ -20,16 +20,16 @@ impl WidgetBuild for DivBuilder {
 struct TextBuilder(&'static str);
 impl WidgetBuild for TextBuilder {
     type Widget = Text;
-    fn spawn(self, _me: NodeId, _s: &mut Spawner) -> Text {
+    fn spawn(self, _me: Handle<Text>, _s: &mut Spawner<Text>) -> Text {
         Text(self.0.to_owned())
     }
 }
 
-/// `Div` > `Div` > `Text`, exercising both `me` and an id returned by `child`.
+/// `Div` > `Div` > `Text`, exercising both `me` and a handle returned by `child`.
 struct LabelBuilder(&'static str);
 impl WidgetBuild for LabelBuilder {
     type Widget = Div;
-    fn spawn(self, me: NodeId, s: &mut Spawner) -> Div {
+    fn spawn(self, me: Handle<Div>, s: &mut Spawner<Div>) -> Div {
         let inner = s.child(me, DivBuilder);
         s.child(inner, TextBuilder(self.0));
         Div
@@ -44,7 +44,7 @@ fn ids<W: Widget>(app: &mut App) -> Vec<NodeId> {
 
 /// An id that was live once and isn't any more.
 fn stale(app: &mut App) -> NodeId {
-    let id = app.spawn(app.root(), DivBuilder).unwrap();
+    let id = app.spawn(app.root(), DivBuilder).unwrap().id();
     app.remove(id).unwrap();
     id
 }
@@ -74,9 +74,9 @@ fn root_cannot_be_removed() {
 fn spawn_appends_in_sibling_order() {
     let mut app = App::new();
     let root = app.root();
-    let a = app.spawn(root, DivBuilder).unwrap();
-    let b = app.spawn(root, TextBuilder("b")).unwrap();
-    let c = app.spawn(a, DivBuilder).unwrap();
+    let a = app.spawn(root, DivBuilder).unwrap().id();
+    let b = app.spawn(root, TextBuilder("b")).unwrap().id();
+    let c = app.spawn(a, DivBuilder).unwrap().id();
 
     assert_eq!(app.children(root), Some(&[a, b][..]));
     assert_eq!(app.children(a), Some(&[c][..]));
@@ -89,7 +89,7 @@ fn spawn_appends_in_sibling_order() {
 fn spawn_under_stale_parent_fails() {
     let mut app = App::new();
     let a = stale(&mut app);
-    assert_eq!(app.spawn(a, DivBuilder), Err(Error::Stale));
+    assert_eq!(app.spawn(a, DivBuilder).map(Handle::id), Err(Error::Stale));
     assert_eq!(app.children(app.root()), Some(&[][..]));
 }
 
@@ -100,22 +100,25 @@ fn builder_receives_its_final_id() {
     struct ProbeBuilder(std::rc::Rc<std::cell::Cell<Option<NodeId>>>);
     impl WidgetBuild for ProbeBuilder {
         type Widget = Probe;
-        fn spawn(self, me: NodeId, _s: &mut Spawner) -> Probe {
-            self.0.set(Some(me));
+        fn spawn(self, me: Handle<Probe>, _s: &mut Spawner<Probe>) -> Probe {
+            self.0.set(Some(me.id()));
             Probe
         }
     }
 
     let seen = std::rc::Rc::new(std::cell::Cell::new(None));
     let mut app = App::new();
-    let id = app.spawn(app.root(), ProbeBuilder(seen.clone())).unwrap();
+    let id = app
+        .spawn(app.root(), ProbeBuilder(seen.clone()))
+        .unwrap()
+        .id();
     assert_eq!(seen.get(), Some(id));
 }
 
 #[test]
 fn composite_builder_spawns_a_subtree() {
     let mut app = App::new();
-    let label = app.spawn(app.root(), LabelBuilder("hi")).unwrap();
+    let label = app.spawn(app.root(), LabelBuilder("hi")).unwrap().id();
 
     let inner = app.children(label).unwrap()[0];
     let text = app.children(inner).unwrap()[0];
@@ -132,7 +135,7 @@ fn composite_builder_spawns_a_subtree() {
 #[test]
 fn widget_and_widget_mut_resolve_by_type() {
     let mut app = App::new();
-    let t = app.spawn(app.root(), TextBuilder("a")).unwrap();
+    let t = app.spawn(app.root(), TextBuilder("a")).unwrap().id();
 
     assert_eq!(app.widget::<Text>(t).unwrap().0, "a");
     app.widget_mut::<Text>(t).unwrap().0.push('b');
@@ -147,10 +150,10 @@ fn widget_and_widget_mut_resolve_by_type() {
 fn widgets_iterates_one_column() {
     let mut app = App::new();
     let root = app.root();
-    let d1 = app.spawn(root, DivBuilder).unwrap();
-    let t1 = app.spawn(root, TextBuilder("1")).unwrap();
-    let d2 = app.spawn(d1, DivBuilder).unwrap();
-    let t2 = app.spawn(d2, TextBuilder("2")).unwrap();
+    let d1 = app.spawn(root, DivBuilder).unwrap().id();
+    let t1 = app.spawn(root, TextBuilder("1")).unwrap().id();
+    let d2 = app.spawn(d1, DivBuilder).unwrap().id();
+    let t2 = app.spawn(d2, TextBuilder("2")).unwrap().id();
 
     let mut divs = vec![d1, d2];
     divs.sort();
@@ -171,7 +174,7 @@ fn widgets_of_unseen_type_is_empty() {
     struct Never;
     impl Widget for Never {}
     let mut app = App::new();
-    app.spawn(app.root(), DivBuilder).unwrap();
+    app.spawn(app.root(), DivBuilder).unwrap().id();
     assert_eq!(app.widgets::<Never>().count(), 0);
 }
 
@@ -181,8 +184,8 @@ fn widgets_of_unseen_type_is_empty() {
 fn remove_frees_the_whole_subtree() {
     let mut app = App::new();
     let root = app.root();
-    let keep = app.spawn(root, DivBuilder).unwrap();
-    let label = app.spawn(root, LabelBuilder("x")).unwrap();
+    let keep = app.spawn(root, DivBuilder).unwrap().id();
+    let label = app.spawn(root, LabelBuilder("x")).unwrap().id();
     let inner = app.children(label).unwrap()[0];
     let text = app.children(inner).unwrap()[0];
 
@@ -202,7 +205,7 @@ fn remove_frees_the_whole_subtree() {
 #[test]
 fn remove_twice_is_stale() {
     let mut app = App::new();
-    let a = app.spawn(app.root(), DivBuilder).unwrap();
+    let a = app.spawn(app.root(), DivBuilder).unwrap().id();
     assert_eq!(app.remove(a), Ok(()));
     assert_eq!(app.remove(a), Err(Error::Stale));
 }
@@ -210,9 +213,9 @@ fn remove_twice_is_stale() {
 #[test]
 fn reused_slot_gets_a_new_generation_and_old_id_stays_stale() {
     let mut app = App::new();
-    let a = app.spawn(app.root(), TextBuilder("old")).unwrap();
+    let a = app.spawn(app.root(), TextBuilder("old")).unwrap().id();
     app.remove(a).unwrap();
-    let b = app.spawn(app.root(), TextBuilder("new")).unwrap();
+    let b = app.spawn(app.root(), TextBuilder("new")).unwrap().id();
 
     // Both free lists are LIFO, so the same slots come back…
     assert_eq!(a.component_index(), b.component_index());
@@ -231,7 +234,7 @@ fn reused_slot_gets_a_new_generation_and_old_id_stays_stale() {
 fn subtree_slots_are_all_reused() {
     let mut app = App::new();
     let root = app.root();
-    let label = app.spawn(root, LabelBuilder("x")).unwrap();
+    let label = app.spawn(root, LabelBuilder("x")).unwrap().id();
     let inner = app.children(label).unwrap()[0];
     let text = app.children(inner).unwrap()[0];
     app.remove(label).unwrap();
@@ -244,9 +247,9 @@ fn subtree_slots_are_all_reused() {
         text.component_index(),
     ];
     node_slots.sort();
-    let d1 = app.spawn(root, DivBuilder).unwrap();
-    let d2 = app.spawn(root, DivBuilder).unwrap();
-    let t = app.spawn(root, TextBuilder("y")).unwrap();
+    let d1 = app.spawn(root, DivBuilder).unwrap().id();
+    let d2 = app.spawn(root, DivBuilder).unwrap().id();
+    let t = app.spawn(root, TextBuilder("y")).unwrap().id();
     let mut got = vec![
         d1.component_index(),
         d2.component_index(),
@@ -269,7 +272,7 @@ fn subtree_slots_are_all_reused() {
 struct BadParent(NodeId);
 impl WidgetBuild for BadParent {
     type Widget = Div;
-    fn spawn(self, me: NodeId, s: &mut Spawner) -> Div {
+    fn spawn(self, me: Handle<Div>, s: &mut Spawner<Div>) -> Div {
         s.child(me, DivBuilder);
         s.child(self.0, TextBuilder("x"));
         Div
@@ -281,9 +284,12 @@ fn failed_child_tears_down_the_partial_build() {
     let mut app = App::new();
     let root = app.root();
     let gone = stale(&mut app);
-    let keep = app.spawn(root, DivBuilder).unwrap();
+    let keep = app.spawn(root, DivBuilder).unwrap().id();
 
-    assert_eq!(app.spawn(root, BadParent(gone)), Err(Error::Stale));
+    assert_eq!(
+        app.spawn(root, BadParent(gone)).map(Handle::id),
+        Err(Error::Stale)
+    );
 
     assert_eq!(app.children(root), Some(&[keep][..]));
     assert_eq!(ids::<Div>(&mut app), vec![keep]);
@@ -291,7 +297,7 @@ fn failed_child_tears_down_the_partial_build() {
 
     // The slots the failed build reserved were released: the next spawn
     // reuses rather than grows.
-    let next = app.spawn(root, DivBuilder).unwrap();
+    let next = app.spawn(root, DivBuilder).unwrap().id();
     assert!(next.component_index() <= keep.component_index() + 2);
 }
 
@@ -300,7 +306,7 @@ fn child_after_failure_is_a_noop() {
     struct Greedy(NodeId);
     impl WidgetBuild for Greedy {
         type Widget = Div;
-        fn spawn(self, me: NodeId, s: &mut Spawner) -> Div {
+        fn spawn(self, me: Handle<Div>, s: &mut Spawner<Div>) -> Div {
             let a = s.child(me, DivBuilder);
             let b = s.child(self.0, DivBuilder);
             let c = s.child(a, DivBuilder);
@@ -316,7 +322,10 @@ fn child_after_failure_is_a_noop() {
     let mut app = App::new();
     let root = app.root();
     let gone = stale(&mut app);
-    assert_eq!(app.spawn(root, Greedy(gone)), Err(Error::Stale));
+    assert_eq!(
+        app.spawn(root, Greedy(gone)).map(Handle::id),
+        Err(Error::Stale)
+    );
     assert_eq!(app.children(root), Some(&[][..]));
     assert_eq!(app.widgets::<Div>().count(), 0);
 }

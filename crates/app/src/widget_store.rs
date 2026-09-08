@@ -5,9 +5,14 @@ use crate::{NodeId, Widget};
 /// A widget plus the id of the node it belongs to. The back-pointer is what
 /// lets a store validate a lookup and lets per-column iteration report which
 /// node each widget is.
+///
+/// `widget` is `None` only while a handler for this node is running: the
+/// widget is moved out so the handler can hold `&mut W` and `&mut App` at
+/// once, and moved back in afterwards. Every lookup treats that state as
+/// "absent".
 pub(crate) struct WidgetWrapper<W> {
     pub node_id: NodeId,
-    pub widget: W,
+    pub widget: Option<W>,
 }
 
 /// Object-safe view of a [`WidgetStore`], so `App` can hold one column per widget
@@ -52,20 +57,44 @@ impl<W: Widget> WidgetStore<W> {
     /// The node's generation has already been checked by the caller; the
     /// `node_id` comparison here guards the widget slot having been reused
     /// under a node that (through a bug) still points at it.
-    pub fn get(&self, id: NodeId) -> Option<&W> {
+    fn wrapper(&self, id: NodeId) -> Option<&WidgetWrapper<W>> {
         let wrapper = self.slots.get(id.widget_index() as usize)?.as_ref()?;
-        (wrapper.node_id == id).then_some(&wrapper.widget)
+        (wrapper.node_id == id).then_some(wrapper)
+    }
+
+    fn wrapper_mut(&mut self, id: NodeId) -> Option<&mut WidgetWrapper<W>> {
+        let wrapper = self.slots.get_mut(id.widget_index() as usize)?.as_mut()?;
+        (wrapper.node_id == id).then_some(wrapper)
+    }
+
+    pub fn get(&self, id: NodeId) -> Option<&W> {
+        self.wrapper(id)?.widget.as_ref()
     }
 
     pub fn get_mut(&mut self, id: NodeId) -> Option<&mut W> {
-        let wrapper = self.slots.get_mut(id.widget_index() as usize)?.as_mut()?;
-        (wrapper.node_id == id).then_some(&mut wrapper.widget)
+        self.wrapper_mut(id)?.widget.as_mut()
+    }
+
+    /// Move the widget out for the duration of a handler. `None` if the slot
+    /// isn't this node's or the widget is already out.
+    pub fn take(&mut self, id: NodeId) -> Option<W> {
+        self.wrapper_mut(id)?.widget.take()
+    }
+
+    /// Put a taken widget back. If the node was removed in the meantime the
+    /// slot is empty or belongs to someone else, and `widget` is dropped.
+    pub fn put_back(&mut self, id: NodeId, widget: W) {
+        if let Some(wrapper) = self.wrapper_mut(id) {
+            debug_assert!(wrapper.widget.is_none());
+            wrapper.widget = Some(widget);
+        }
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (NodeId, &mut W)> {
-        self.slots
-            .iter_mut()
-            .filter_map(|slot| slot.as_mut().map(|w| (w.node_id, &mut w.widget)))
+        self.slots.iter_mut().filter_map(|slot| {
+            let w = slot.as_mut()?;
+            Some((w.node_id, w.widget.as_mut()?))
+        })
     }
 }
 

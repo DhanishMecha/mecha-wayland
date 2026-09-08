@@ -1,16 +1,31 @@
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
-use crate::NodeId;
+use crate::{App, NodeId};
+
+/// An erased per-node handler. Built by [`Spawner::on`](crate::Spawner::on)
+/// around the user's plain `fn`; it downcasts the event, takes the widget out
+/// of its store, builds the [`Context`](crate::Context), and puts the widget
+/// back. Registration order is preserved by the `Vec` it lives in.
+pub(crate) struct Handler {
+    pub event: TypeId,
+    pub run: HandlerFn,
+}
+
+pub(crate) type HandlerFn = Box<dyn Fn(&mut App, NodeId, &dyn Any)>;
 
 /// Tree bookkeeping for one node. The widget itself lives in a
 /// [`WidgetStore`](crate::widget_store::WidgetStore); the node only records which one.
 pub(crate) struct Node {
+    /// The node's own id, so a slot walk can name it.
+    pub id: NodeId,
     /// `None` exactly for the root.
     pub type_id: Option<TypeId>,
     /// The root is its own parent; every other node has a real one.
     pub parent: NodeId,
     /// In sibling order.
     pub children: Vec<NodeId>,
+    /// In registration order. Empty for the root.
+    pub handlers: Vec<Handler>,
 }
 
 struct Slot {
@@ -68,6 +83,16 @@ impl Nodes {
             return None;
         }
         slot.node.as_mut()
+    }
+
+    /// Every live node's id, in slot order. Used by
+    /// [`App::emit_all`](crate::App::emit_all); the ids are snapshotted at
+    /// emit time so the walk is stable while handlers run.
+    pub fn live_ids(&self) -> Vec<NodeId> {
+        self.slots
+            .iter()
+            .filter_map(|slot| slot.node.as_ref().map(|node| node.id))
+            .collect()
     }
 
     /// Empty one slot and invalidate every id that names it. Returns the

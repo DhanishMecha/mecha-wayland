@@ -1,10 +1,11 @@
-use std::any::TypeId;
-use std::collections::HashMap;
+use std::any::{Any, TypeId};
+use std::collections::{HashMap, VecDeque};
 use std::fmt;
+use std::marker::PhantomData;
 
-use crate::node::{Node, Nodes};
+use crate::node::{Handler, Node, Nodes};
 use crate::widget_store::{AnyWidgetStore, WidgetStore, WidgetWrapper};
-use crate::{NodeId, Widget, WidgetBuild};
+use crate::{Context, Event, Handle, NodeId, Signal, Tick, Widget, WidgetBuild};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -25,22 +26,45 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// A system: a plain `fn` that runs for every [`Signal`] of type `S`.
+pub type System<S> = fn(&mut App, &S);
+
+/// A queued unit of work: a signal or event with its dispatch baked in, so
+/// the queue needs no knowledge of the concrete type.
+type Job = Box<dyn FnOnce(&mut App)>;
+
 /// The runtime: a tree of nodes, each backed by a widget stored in a
-/// per-type column.
+/// per-type column, plus the systems and queues that drive it.
 ///
 /// The tree is never empty — [`App::new`] creates the root, the one node that
 /// has no widget. Every other node is created by [`App::spawn`] under an
 /// existing parent and destroyed, with its whole subtree, by [`App::remove`].
+///
+/// Messages are queued, never run inline: [`App::signal`] and [`App::emit`]
+/// push, [`App::flush`] drains. See the crate docs for the model.
 pub struct App {
     nodes: Nodes,
     widget_stores: Vec<Box<dyn AnyWidgetStore>>,
     columns: HashMap<TypeId, u64>,
     root: NodeId,
+    /// Per signal type, a `Vec<System<S>>` behind `Any`.
+    systems: HashMap<TypeId, Box<dyn Any>>,
+    events: VecDeque<Job>,
+    signals: VecDeque<Job>,
+    runner: fn(App),
 }
 
 impl Default for App {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Loops `signal(Tick)` then `flush()` forever. See [`App::set_runner`].
+fn default_runner(mut app: App) {
+    loop {
+        app.signal(Tick);
+        app.flush();
     }
 }
 
@@ -52,9 +76,11 @@ impl App {
         nodes.fill(
             index,
             Node {
+                id: root,
                 type_id: None,
                 parent: root,
                 children: Vec::new(),
+                handlers: Vec::new(),
             },
         );
         Self {
@@ -62,6 +88,10 @@ impl App {
             widget_stores: Vec::new(),
             columns: HashMap::new(),
             root,
+            systems: HashMap::new(),
+            events: VecDeque::new(),
+            signals: VecDeque::new(),
+            runner: default_runner,
         }
     }
 
@@ -70,16 +100,21 @@ impl App {
         self.root
     }
 
-    // ── write ────────────────────────────────────────────────────────────────
+    // ── tree: write ──────────────────────────────────────────────────────────
 
     /// Build `builder`'s widget (and any subtree it describes) as the last
     /// child of `parent`.
     ///
     /// The node and widget slots are reserved *before* the builder runs, so
-    /// the id it receives is the id returned here. If a nested
-    /// [`Spawner::child`] fails, everything built so far is torn down and the
-    /// error is returned; the tree is left as it was.
-    pub fn spawn<B: WidgetBuild>(&mut self, parent: NodeId, builder: B) -> Result<NodeId, Error> {
+    /// the handle it receives is the handle returned here. If a nested
+    /// [`Spawner::child`] or [`Spawner::on`] fails, everything built so far
+    /// is torn down and the error is returned; the tree is left as it was.
+    pub fn spawn<B: WidgetBuild>(
+        &mut self,
+        parent: impl Into<NodeId>,
+        builder: B,
+    ) -> Result<Handle<B::Widget>, Error> {
+        let parent = parent.into();
         self.nodes.get(parent).ok_or(Error::Stale)?;
 
         let type_id = TypeId::of::<B::Widget>();
@@ -91,9 +126,11 @@ impl App {
         self.nodes.fill(
             component_index,
             Node {
+                id,
                 type_id: Some(type_id),
                 parent,
                 children: Vec::new(),
+                handlers: Vec::new(),
             },
         );
         self.nodes
@@ -102,11 +139,13 @@ impl App {
             .children
             .push(id);
 
+        let handle = Handle::new(id);
         let mut spawner = Spawner {
             app: self,
             failed: None,
+            _widget: PhantomData,
         };
-        let widget = builder.spawn(id, &mut spawner);
+        let widget = builder.spawn(handle, &mut spawner);
         if let Some(e) = spawner.failed {
             self.remove(id).expect("partially built node is live");
             return Err(e);
@@ -116,15 +155,18 @@ impl App {
             widget_index,
             WidgetWrapper {
                 node_id: id,
-                widget,
+                widget: Some(widget),
             },
         );
-        Ok(id)
+        Ok(handle)
     }
 
     /// Remove `id` and every node under it. Every id in the subtree is stale
-    /// afterwards; the freed slots are reused by later spawns.
-    pub fn remove(&mut self, id: NodeId) -> Result<(), Error> {
+    /// afterwards; the freed slots are reused by later spawns. Handlers go
+    /// with their nodes; events already queued for them are dropped when the
+    /// queue drains.
+    pub fn remove(&mut self, id: impl Into<NodeId>) -> Result<(), Error> {
+        let id = id.into();
         if id == self.root {
             return Err(Error::Root);
         }
@@ -160,26 +202,30 @@ impl App {
         Ok(())
     }
 
-    // ── read ─────────────────────────────────────────────────────────────────
+    // ── tree: read ───────────────────────────────────────────────────────────
 
     /// `None` if `id` is stale. The root's parent is the root.
-    pub fn parent(&self, id: NodeId) -> Option<NodeId> {
-        self.nodes.get(id).map(|n| n.parent)
+    pub fn parent(&self, id: impl Into<NodeId>) -> Option<NodeId> {
+        self.nodes.get(id.into()).map(|n| n.parent)
     }
 
     /// In sibling order. `None` if `id` is stale.
-    pub fn children(&self, id: NodeId) -> Option<&[NodeId]> {
-        self.nodes.get(id).map(|n| n.children.as_slice())
+    pub fn children(&self, id: impl Into<NodeId>) -> Option<&[NodeId]> {
+        self.nodes.get(id.into()).map(|n| n.children.as_slice())
     }
 
-    /// `None` if `id` is stale, is the root, or holds a widget of another type.
-    pub fn widget<W: Widget>(&self, id: NodeId) -> Option<&W> {
+    /// `None` if `id` is stale, is the root, holds a widget of another type,
+    /// or is the node whose handler is currently running.
+    pub fn widget<W: Widget>(&self, id: impl Into<NodeId>) -> Option<&W> {
+        let id = id.into();
         self.check_type::<W>(id)?;
         self.widget_store::<W>(id.widget_column()).get(id)
     }
 
-    /// `None` if `id` is stale, is the root, or holds a widget of another type.
-    pub fn widget_mut<W: Widget>(&mut self, id: NodeId) -> Option<&mut W> {
+    /// `None` if `id` is stale, is the root, holds a widget of another type,
+    /// or is the node whose handler is currently running.
+    pub fn widget_mut<W: Widget>(&mut self, id: impl Into<NodeId>) -> Option<&mut W> {
+        let id = id.into();
         self.check_type::<W>(id)?;
         self.widget_store_mut::<W>(id.widget_column()).get_mut(id)
     }
@@ -194,6 +240,148 @@ impl App {
             None => None,
         };
         store.into_iter().flat_map(WidgetStore::iter_mut)
+    }
+
+    // ── systems ──────────────────────────────────────────────────────────────
+
+    /// Register `system` to run for every signal of type `S`, after any
+    /// system registered for `S` before it. There is no removal, and no
+    /// dedupe: registering the same fn twice runs it twice.
+    pub fn system<S: Signal>(&mut self, system: System<S>) -> &mut Self {
+        self.systems
+            .entry(TypeId::of::<S>())
+            .or_insert_with(|| Box::new(Vec::<System<S>>::new()))
+            .downcast_mut::<Vec<System<S>>>()
+            .expect("systems column keyed by its signal type")
+            .push(system);
+        self
+    }
+
+    /// Queue `signal` for its systems. Nothing runs until [`App::flush`].
+    pub fn signal<S: Signal>(&mut self, signal: S) {
+        self.signals
+            .push_back(Box::new(move |app| app.run_systems(&signal)));
+    }
+
+    fn run_systems<S: Signal>(&mut self, signal: &S) {
+        // Looked up afresh each step: a system registered from inside a
+        // system for the same `S` runs in this same pass, in order.
+        let mut i = 0;
+        loop {
+            let system = self
+                .systems
+                .get(&TypeId::of::<S>())
+                .and_then(|column| column.downcast_ref::<Vec<System<S>>>())
+                .and_then(|systems| systems.get(i).copied());
+            match system {
+                Some(system) => system(self, signal),
+                None => return,
+            }
+            i += 1;
+        }
+    }
+
+    // ── events ───────────────────────────────────────────────────────────────
+
+    /// Queue `event` for each of `targets`, in order. Nothing runs until
+    /// [`App::flush`]. A target that is stale by then, is the root, or has
+    /// no handler for `E` is skipped.
+    pub fn emit<E: Event>(&mut self, event: E, targets: &[NodeId]) {
+        let targets = targets.to_vec();
+        self.events.push_back(Box::new(move |app| {
+            for id in targets {
+                app.run_handlers(id, &event);
+            }
+        }));
+    }
+
+    /// Queue `event` for every node live right now, in slot order. Only nodes
+    /// with a handler for `E` do anything.
+    pub fn emit_all<E: Event>(&mut self, event: E) {
+        let targets = self.nodes.live_ids();
+        self.events.push_back(Box::new(move |app| {
+            for id in targets {
+                app.run_handlers(id, &event);
+            }
+        }));
+    }
+
+    fn run_handlers<E: Event>(&mut self, id: NodeId, event: &E) {
+        // Nobody can add or remove handlers on a node while its own handlers
+        // run (only a `Spawner` registers, and handlers can't spawn), so the
+        // list can be moved out and moved back without anyone noticing. The
+        // guard moves it back on every exit, a panicking handler included,
+        // so an unwind caught higher up doesn't strip the node of behaviour.
+        struct Restore<'a> {
+            app: &'a mut App,
+            id: NodeId,
+            handlers: Vec<Handler>,
+        }
+        impl Drop for Restore<'_> {
+            fn drop(&mut self) {
+                if let Some(node) = self.app.nodes.get_mut(self.id) {
+                    node.handlers = std::mem::take(&mut self.handlers);
+                }
+            }
+        }
+
+        let Some(node) = self.nodes.get_mut(id) else {
+            return;
+        };
+        let handlers = std::mem::take(&mut node.handlers);
+        let mut guard = Restore {
+            app: self,
+            id,
+            handlers,
+        };
+        // Disjoint field borrows: the list is read while the app is lent out.
+        let Restore { app, handlers, .. } = &mut guard;
+        for handler in handlers.iter().filter(|h| h.event == TypeId::of::<E>()) {
+            (handler.run)(app, id, event);
+        }
+    }
+
+    /// Move `id`'s widget out for a handler. See [`WidgetWrapper`].
+    pub(crate) fn take_widget<W: Widget>(&mut self, id: NodeId) -> Option<W> {
+        self.check_type::<W>(id)?;
+        self.widget_store_mut::<W>(id.widget_column()).take(id)
+    }
+
+    /// Put a taken widget back; dropped if the node is gone.
+    pub(crate) fn put_widget_back<W: Widget>(&mut self, id: NodeId, widget: W) {
+        if self.check_type::<W>(id).is_some() {
+            self.widget_store_mut::<W>(id.widget_column())
+                .put_back(id, widget);
+        }
+    }
+
+    // ── flush and run ────────────────────────────────────────────────────────
+
+    /// Drain both queues until they are empty. Events take priority: a
+    /// signal is only run when no event is pending, and anything a handler
+    /// or system queues is picked up in the same call.
+    pub fn flush(&mut self) {
+        loop {
+            if let Some(job) = self.events.pop_front() {
+                job(self);
+            } else if let Some(job) = self.signals.pop_front() {
+                job(self);
+            } else {
+                return;
+            }
+        }
+    }
+
+    /// Replace the runner that [`App::run`] hands the app to. The default
+    /// loops `signal(Tick)` then `flush()` forever.
+    pub fn set_runner(&mut self, runner: fn(App)) -> &mut Self {
+        self.runner = runner;
+        self
+    }
+
+    /// Hand the app to its runner. Returns when the runner does.
+    pub fn run(self) {
+        (self.runner)(self)
     }
 
     // ── internals ────────────────────────────────────────────────────────────
@@ -229,31 +417,70 @@ impl App {
     }
 }
 
-/// What a [`WidgetBuild`] gets to touch while it runs: the ability to attach
-/// children, and nothing else.
-pub struct Spawner<'a> {
+/// What a [`WidgetBuild`] gets to touch while it runs: attach children and
+/// register handlers, nothing else.
+///
+/// `W` is the widget being built. It is not used yet; it is there so later
+/// conveniences can be typed on the builder's own widget.
+pub struct Spawner<'a, W: Widget> {
     app: &'a mut App,
     failed: Option<Error>,
+    _widget: PhantomData<fn() -> W>,
 }
 
-impl Spawner<'_> {
+impl<W: Widget> Spawner<'_, W> {
     /// Build `builder` as the last child of `parent`, which should be the
-    /// `me` the builder was given or an id returned by an earlier `child`.
+    /// `me` the builder was given or a handle returned by an earlier `child`.
     ///
     /// A builder has no way to propagate an error, so if `parent` is stale
-    /// this returns an id that matches nothing and remembers the error;
-    /// further `child` calls are no-ops and the enclosing [`App::spawn`]
-    /// returns `Err` after tearing down whatever was built.
-    pub fn child<B: WidgetBuild>(&mut self, parent: NodeId, builder: B) -> NodeId {
+    /// this returns a handle that matches nothing and remembers the error;
+    /// further `child` and `on` calls are no-ops and the enclosing
+    /// [`App::spawn`] returns `Err` after tearing down whatever was built.
+    pub fn child<B: WidgetBuild>(
+        &mut self,
+        parent: impl Into<NodeId>,
+        builder: B,
+    ) -> Handle<B::Widget> {
         if self.failed.is_some() {
-            return NodeId::INVALID;
+            return Handle::INVALID;
         }
         match self.app.spawn(parent, builder) {
-            Ok(id) => id,
+            Ok(handle) => handle,
             Err(e) => {
                 self.failed = Some(e);
-                NodeId::INVALID
+                Handle::INVALID
             }
         }
+    }
+
+    /// Run `handler` whenever an `E` is emitted at `target`, after any
+    /// handler for `E` registered on it earlier. `target` is `me` or a handle
+    /// an earlier `child` returned.
+    ///
+    /// `handler` is a plain `fn`: it cannot capture. Whatever it needs lives
+    /// in the widget, or arrives in the event.
+    pub fn on<V: Widget, E: Event>(&mut self, target: Handle<V>, handler: fn(&mut Context<V>, &E)) {
+        if self.failed.is_some() {
+            return;
+        }
+        let id = target.id();
+        let Some(node) = self.app.nodes.get_mut(id) else {
+            self.failed = Some(Error::Stale);
+            return;
+        };
+        node.handlers.push(Handler {
+            event: TypeId::of::<E>(),
+            run: Box::new(move |app: &mut App, id: NodeId, event: &dyn Any| {
+                let event = event
+                    .downcast_ref::<E>()
+                    .expect("handler selected by event TypeId");
+                // The context holds the widget and returns it on drop,
+                // unwinding included.
+                let Some(mut ctx) = Context::take(app, Handle::<V>::new(id)) else {
+                    return;
+                };
+                handler(&mut ctx, event);
+            }),
+        });
     }
 }
