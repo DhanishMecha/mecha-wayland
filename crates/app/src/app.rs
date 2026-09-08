@@ -8,7 +8,7 @@ use crate::node::{Handler, Node, Nodes};
 use crate::resource::Resources;
 use crate::widget_store::{AnyWidgetStore, WidgetStore, WidgetWrapper};
 use crate::{
-    Comp, CompMut, Component, Comps, CompsMut, Context, Event, Handle, NodeId, Res, ResMut,
+    Comp, CompMut, Component, Comps, CompsMut, Context, Event, Handle, Module, NodeId, Res, ResMut,
     Resource, Signal, Tick, Widget, WidgetBuild,
 };
 
@@ -58,7 +58,9 @@ pub struct App {
     components: Components,
     events: VecDeque<Job>,
     signals: VecDeque<Job>,
-    runner: fn(App),
+    /// `None` until a module (or `main`) sets one; [`App::run`] falls back
+    /// to [`default_runner`].
+    runner: Option<fn(App)>,
 }
 
 impl Default for App {
@@ -100,13 +102,23 @@ impl App {
             components: Components::new(),
             events: VecDeque::new(),
             signals: VecDeque::new(),
-            runner: default_runner,
+            runner: None,
         }
     }
 
     /// Always valid; the only node whose parent is itself.
     pub fn root(&self) -> NodeId {
         self.root
+    }
+
+    // ── modules ──────────────────────────────────────────────────────────────
+
+    /// Install `module` now. It runs against everything added before it, so
+    /// order is the dependency order: a module that reads another's
+    /// resource or component goes after it. See [`Module`].
+    pub fn add_module(&mut self, module: impl Module) -> &mut Self {
+        module.install(self);
+        self
     }
 
     // ── tree: write ──────────────────────────────────────────────────────────
@@ -468,16 +480,24 @@ impl App {
         }
     }
 
-    /// Replace the runner that [`App::run`] hands the app to. The default
-    /// loops `signal(Tick)` then `flush()` forever.
+    /// Install the function [`App::run`] hands the app to. A module sets
+    /// it, once. With none set, `run` uses the default, which loops
+    /// `signal(Tick)` then `flush()` forever.
+    ///
+    /// # Panics
+    ///
+    /// If a runner is already set. Two modules both wanting the loop is a
+    /// configuration error, not a merge.
     pub fn set_runner(&mut self, runner: fn(App)) -> &mut Self {
-        self.runner = runner;
+        assert!(self.runner.is_none(), "runner already set");
+        self.runner = Some(runner);
         self
     }
 
     /// Hand the app to its runner. Returns when the runner does.
     pub fn run(self) {
-        (self.runner)(self)
+        let runner = self.runner.unwrap_or(default_runner);
+        runner(self)
     }
 
     // ── internals ────────────────────────────────────────────────────────────

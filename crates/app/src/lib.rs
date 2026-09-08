@@ -18,6 +18,8 @@
 //!   tree. See [Resources](#resources).
 //! - A [`Component`] is per-node data: every node carries one value of
 //!   every registered component type. See [Components](#components).
+//! - A [`Module`] installs a set of the above into the app in one go. See
+//!   [Modules](#modules).
 //!
 //! # Messages
 //!
@@ -38,6 +40,7 @@
 //! [`App::flush`] drains them: events first, then one signal, then events
 //! again, until both are empty. [`App::run`] hands the app to a runner
 //! ([`App::set_runner`]); the default one loops `signal(Tick)`, `flush()`.
+//! A runner is set at most once; a second `set_runner` panics.
 //!
 //! # Resources
 //!
@@ -71,6 +74,15 @@
 //! column comes back. Lookups return `None` while lent out. Only two
 //! things panic: registering a type twice, and touching a type that was
 //! never registered.
+//!
+//! # Modules
+//!
+//! The app knows no component, resource, system or runner of its own. Each
+//! area of functionality — layout, paint, interactivity, presentation — is
+//! a [`Module`]: a value whose `install(self, &mut App)` registers its
+//! components, inserts its resources, attaches its systems and, for the
+//! one that owns the loop, sets the runner. [`App::add_module`] installs
+//! right away, in call order, so a module builds on the modules before it.
 //!
 //! # Quick start
 //!
@@ -114,6 +126,7 @@ mod component;
 mod context;
 mod event;
 mod id;
+mod module;
 mod node;
 mod resource;
 mod widget;
@@ -124,12 +137,13 @@ pub use component::{Comp, CompMut, Component, Comps, CompsMut};
 pub use context::Context;
 pub use event::{Event, Signal, Tick};
 pub use id::{Handle, NodeId};
+pub use module::Module;
 pub use resource::{Res, ResMut, Resource};
 pub use widget::{Widget, WidgetBuild};
 
 pub mod prelude {
     pub use crate::{
-        App, Comp, CompMut, Component, Comps, CompsMut, Context, Event, Handle, NodeId, Res,
-        ResMut, Resource, Signal, Spawner, Tick, Widget, WidgetBuild,
+        App, Comp, CompMut, Component, Comps, CompsMut, Context, Event, Handle, Module, NodeId,
+        Res, ResMut, Resource, Signal, Spawner, Tick, Widget, WidgetBuild,
     };
 }
