@@ -20,7 +20,6 @@ const COUNT_FONT: &BakedFont = &atlas::COUNTER_FONT_INTER_64;
 
 const BG: Color = Color::from_rgb8(24, 24, 32);
 const RED: Color = Color::from_rgb8(217, 64, 64);
-const GREEN: Color = Color::from_rgb8(64, 191, 89);
 const INK: Color = Color::from_rgb8(240, 240, 245);
 
 // ── the button ───────────────────────────────────────────────────────────────
@@ -30,6 +29,7 @@ const INK: Color = Color::from_rgb8(240, 240, 245);
 enum Press {
     Inc,
     Dec,
+    ToggleTheme,
 }
 impl Event for Press {}
 
@@ -39,18 +39,19 @@ impl Event for Press {}
 struct Button {
     counter: Handle<Counter>,
     press: Press,
+    color_role: ColorVariant,
 }
 impl Widget for Button {}
 
 fn button(
     label: &'static str,
-    color: Color,
+    color_role: ColorVariant,
     counter: Handle<Counter>,
     press: Press,
 ) -> ButtonBuilder {
     ButtonBuilder {
         label,
-        color,
+        color_role,
         counter,
         press,
     }
@@ -58,7 +59,7 @@ fn button(
 
 struct ButtonBuilder {
     label: &'static str,
-    color: Color,
+    color_role: ColorVariant,
     counter: Handle<Counter>,
     press: Press,
 }
@@ -67,13 +68,28 @@ impl WidgetBuild for ButtonBuilder {
     type Widget = Button;
 
     fn spawn(self, me: Handle<Button>, s: &mut Spawner<Button>) -> Button {
+        let color = s
+            .resource::<MechanixTheme>()
+            .map(|theme| theme.color(self.color_role))
+            .unwrap_or(RED);
+
         s.set_component(LayoutStyle::default().size(px(72.0), px(72.0)).center());
-        s.set_component(Paint::Quad(Quad::new(self.color).radius(16.0)));
-        s.child(me, text(self.label).font(LABEL_FONT).color(INK));
+        s.set_component(Paint::Quad(Quad::new(color).radius(16.0)));
+        s.child(me, text(self.label).font(LABEL_FONT).color(RED));
+        // Re-resolve color when ThemeChanged broadcasts ApplyTheme
+        s.on(me, |ctx: &mut Context<Button>, _: &ApplyTheme| {
+            let role = ctx.me().color_role;
+            if let Some(theme) = ctx.resource::<MechanixTheme>() {
+                let new_color = theme.color(role);
+                ctx.set_component(Paint::Quad(Quad::new(new_color).radius(16.0)));
+            }
+        });
+
         s.on(me, on_clicked);
         Button {
             counter: self.counter,
             press: self.press,
+            color_role: self.color_role,
         }
     }
 }
@@ -116,20 +132,29 @@ impl WidgetBuild for CounterBuilder {
                 .title("counter")
                 .layout(
                     LayoutStyle::default()
-                        .size(px(480.0), px(240.0))
+                        .size(px(560.0), px(240.0))
                         .row()
-                        .gap(px(28.0))
+                        .gap(px(20.0))
                         .center(),
                 )
                 .background(Quad::new(BG)),
         );
-        s.child(win, button("-", RED, me, Press::Dec));
-        let count_box = s.child(win, div().size(px(160.0), auto()).center());
+        s.child(win, button("-", ColorVariant::Surface, me, Press::Dec));
+        let count_box = s.child(win, div().size(px(140.0), auto()).center());
         let label = s.child(
             count_box,
             text(self.start.to_string()).font(COUNT_FONT).color(INK),
         );
-        let inc = s.child(win, button("+", GREEN, me, Press::Inc));
+        s.child(win, button("+", ColorVariant::Secondary, me, Press::Inc));
+        s.child(
+            win,
+            button(
+                "T",
+                ColorVariant::SecondaryContainer,
+                me,
+                Press::ToggleTheme,
+            ),
+        );
         s.on(me, on_press);
         Counter {
             count: self.start,
@@ -141,27 +166,46 @@ impl WidgetBuild for CounterBuilder {
 /// The count moves and the label follows; the label's new measure is a
 /// relayout, and the relayout is a frame.
 fn on_press(ctx: &mut Context<Counter>, press: &Press) {
-    let (count, label) = {
-        let me = ctx.me();
-        match press {
-            Press::Inc => me.count += 1,
-            Press::Dec => me.count = me.count.saturating_sub(1),
+    match press {
+        Press::Inc | Press::Dec => {
+            let (count, label) = {
+                let me = ctx.me();
+                match press {
+                    Press::Inc => me.count += 1,
+                    Press::Dec => me.count = me.count.saturating_sub(1),
+                    _ => {}
+                }
+                (me.count.to_string(), me.label.id())
+            };
+            ctx.emit(SetText(count), &[label]);
         }
-        (me.count, me.label)
-    };
-    ctx.emit(SetText(count.to_string()), &[label.id()]);
+        Press::ToggleTheme => {
+            let is_dark = ctx
+                .resource::<MechanixTheme>()
+                .map(|t| t.is_dark())
+                .unwrap_or(true);
+
+            if let Some(mut theme) = ctx.resource_mut::<MechanixTheme>() {
+                *theme = if is_dark {
+                    MechanixTheme::light()
+                } else {
+                    MechanixTheme::dark()
+                };
+            }
+            ctx.signal(ThemeChanged);
+        }
+    }
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
 fn main() {
     let mut app = App::new();
-    app
+    app.add_module(MechanixTheme::dark())
         .add_module(LayoutModule)
         .add_module(PaintModule)
         .add_module(WindowModule)
         .add_module(InteractivityModule)
-
         .add_module(RingModule::default())
         .add_module(WaylandModule)
         .add_module(PresentationModule)

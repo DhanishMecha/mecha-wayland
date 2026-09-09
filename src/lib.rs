@@ -15,7 +15,7 @@ pub use paint;
 pub use presentation;
 pub use renderer;
 pub use ring;
-pub use utils;
+pub use theme;
 pub use wayland;
 pub use widgets;
 pub use window;
@@ -28,7 +28,7 @@ pub mod prelude {
     pub use presentation::prelude::*;
     pub use renderer::prelude::*;
     pub use ring::prelude::*;
-    pub use utils::prelude::*;
+    pub use theme::prelude::*;
     pub use wayland::prelude::*;
     pub use widgets::prelude::*;
     pub use window::prelude::*;
