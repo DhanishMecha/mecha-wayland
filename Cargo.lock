@@ -1152,6 +1152,7 @@ dependencies = [
  "assets",
  "layout",
  "paint",
+ "theme",
  "utils",
 ]
 

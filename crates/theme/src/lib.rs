@@ -1,85 +1,98 @@
 pub mod color;
 pub mod elevation;
-pub mod shapes;
-pub mod state;
+pub mod ext;
+pub mod shape;
+pub mod spacing;
 pub mod typography;
-pub mod utils;
-
-pub use color::{ColorScheme, ColorVariant};
-pub use elevation::{Elevation, ElevationScale};
-pub use shapes::{Shape, Shapes};
-pub use state::{StateLayer, WidgetState};
+use app::{App, Module};
+pub use color::{ColorScheme, ThemeColor};
+pub use elevation::Elevation;
+use ext::on_theme_changed;
+pub use ext::{AppThemeExt, ApplyTheme, ContextThemeExt, SpawnerThemeExt, ThemeChanged};
+pub use shape::Shape;
+pub use spacing::Spacing;
 pub use typography::{FontWeight, TextVariant, Typography, TypographyStyle};
-pub use utils::EdgeInsets;
+use utils::Color;
 
-use ::utils::Color;
-use app::{App, Module, Signal};
-
-// ThemeMode
-/// Visual mode of the theme (`Light` or `Dark`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub enum ThemeMode {
     Light,
     #[default]
     Dark,
 }
 
-// ── MechanixTheme ─────────────────────────────────────────────────────────
-
-/// The Mechanix design system: colors, typography, shapes, and
-/// elevation gathered into one app-wide [`Resource`](app::Resource).
-///
-/// Swap the whole theme at runtime and emit [`ThemeChanged`] to propagate the
-/// update to all widgets.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MechanixTheme {
     pub mode: ThemeMode,
     pub colors: ColorScheme,
     pub typography: Typography,
-    pub shapes: Shapes,
-    pub elevation: ElevationScale,
 }
 
 impl app::Resource for MechanixTheme {}
 
-impl MechanixTheme {
-    /// Returns `true` if the theme is in dark mode.
+impl Default for MechanixTheme {
     #[inline]
-    pub fn is_dark(&self) -> bool {
-        self.mode == ThemeMode::Dark
+    fn default() -> Self {
+        Self::dark()
     }
-    /// Mechanix light theme.
-    pub fn light() -> Self {
+}
+
+impl MechanixTheme {
+    pub fn new(mode: ThemeMode, colors: ColorScheme, typography: Typography) -> Self {
         Self {
-            mode: ThemeMode::Light,
-            colors: ColorScheme::baseline_light(),
-            typography: Typography::default(),
-            shapes: Shapes::default(),
-            elevation: ElevationScale::default(),
+            mode,
+            colors,
+            typography,
         }
     }
 
-    /// Mechanix dark theme.
     pub fn dark() -> Self {
         Self {
             mode: ThemeMode::Dark,
             colors: ColorScheme::baseline_dark(),
-            typography: Typography::default(),
-            shapes: Shapes::default(),
-            elevation: ElevationScale::default(),
+            typography: Typography::baseline(),
         }
     }
 
-    /// Resolve a [`ColorVariant`] to a concrete `utils::Color`.
+    pub fn light() -> Self {
+        Self {
+            mode: ThemeMode::Light,
+            colors: ColorScheme::baseline_light(),
+            typography: Typography::baseline(),
+        }
+    }
+
     #[inline]
-    pub fn color(&self, role: ColorVariant) -> Color {
+    pub const fn mode(&self) -> ThemeMode {
+        self.mode
+    }
+
+    #[inline]
+    pub fn color(&self, role: ThemeColor) -> Color {
         role.resolve(&self.colors)
     }
 
-    /// Resolve a [`TextVariant`] to a `&TypographyStyle`.
     #[inline]
-    pub fn typography(&self, variant: TextVariant) -> &TypographyStyle {
+    pub fn typography(&self, variant: TextVariant) -> TypographyStyle {
         variant.resolve(&self.typography)
+    }
+
+    #[inline]
+    pub fn with_mode(mut self, mode: ThemeMode) -> Self {
+        self.mode = mode;
+        self
+    }
+
+    #[inline]
+    pub fn with_colors(mut self, colors: ColorScheme) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    #[inline]
+    pub fn with_typography(mut self, typography: Typography) -> Self {
+        self.typography = typography;
+        self
     }
 }
 
@@ -90,18 +103,10 @@ impl Module for MechanixTheme {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ThemeChanged;
-impl Signal for ThemeChanged {}
-
-fn on_theme_changed(app: &mut App, _: &ThemeChanged) {
-    app.emit_all(ApplyTheme);
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ApplyTheme;
-impl app::Event for ApplyTheme {}
-
 pub mod prelude {
-    pub use crate::*;
+    pub use crate::ext::{AppThemeExt, ContextThemeExt, SpawnerThemeExt};
+    pub use crate::{
+        ApplyTheme, ColorScheme, Elevation, FontWeight, MechanixTheme, Shape, Spacing, TextVariant,
+        ThemeChanged, ThemeColor, ThemeMode, Typography, TypographyStyle,
+    };
 }

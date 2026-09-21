@@ -10,16 +10,33 @@
 //! widget's components. Nothing outside a handler writes another node's
 //! components, so restyling a sibling is `emit`, never a reach.
 
+use ::utils::{Color, Edges, Point, Size};
 use app::{Context, Handle, Spawner, Widget, WidgetBuild};
 use assets::{AtlasId, BakedFont, SpriteRegion};
 use layout::{Align, Display, Justify, LayoutStyle, Measure, Val, px};
 use paint::{MonochromeSprite, Paint, Quad};
-use utils::{Color, Edges, Point, Size};
+
+pub mod button;
+pub mod fonts;
+pub mod text;
+pub mod utils;
+
+pub use button::{
+    Button, ButtonBuilder, ButtonSize, ButtonStyle, ResolvedButtonStyle, SetButtonState,
+    button_outlined,
+};
+pub use fonts::{WIDGET_FONTS, default_font_for_role};
+pub use text::{ResolvedTextStyle, Text, TextBuilder, TextStyle};
+pub use utils::{ColorSource, StateLayer, WidgetState};
 
 pub mod prelude {
+    pub use crate::button::button;
+    pub use crate::text::text;
     pub use crate::{
-        Div, DivBuilder, Icon, IconBuilder, SetColor, SetFont, SetLayout, SetQuad, SetSprite,
-        SetText, Sprite, Text, TextBuilder, div, icon, text,
+        Button, ButtonBuilder, ButtonSize, ButtonStyle, ColorSource, Div, DivBuilder, Icon,
+        IconBuilder, ResolvedButtonStyle, ResolvedTextStyle, SetButtonState, SetColor, SetFont,
+        SetLayout, SetQuad, SetSprite, SetText, Sprite, StateLayer, Text, TextBuilder, TextStyle,
+        WIDGET_FONTS, WidgetState, button_outlined, default_font_for_role, div, icon,
     };
 }
 
@@ -167,134 +184,6 @@ mirror! { DivBuilder:
     flex_basis(v: Val), grow(g: f32), shrink(s: f32),
     gap(v: Val), row_gap(v: Val), column_gap(v: Val),
     padding(e: Edges<Val>), padding_all(v: Val), margin(e: Edges<Val>), inset(e: Edges<Val>),
-}
-
-// ---------------------------------------------------------------------------
-// Text
-// ---------------------------------------------------------------------------
-
-/// A run of glyphs in one font and one colour. Its `Measure` is the run's
-/// advance by the font's line height, and its `Paint` one sprite per
-/// visible glyph, placed from the font's metrics with the baseline at the
-/// font's ascent. Without a font it measures nothing and draws nothing.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Text {
-    pub font: Option<&'static BakedFont>,
-    pub text: String,
-    pub color: Color,
-}
-impl Widget for Text {}
-
-impl Text {
-    /// The run's advance by the font's line height; `None` without a font.
-    pub fn measure(&self) -> Measure {
-        Measure(
-            self.font
-                .map(|font| Size::new(font.measure_width(&self.text), font.line_height)),
-        )
-    }
-
-    /// One sprite per glyph with a bitmap, pen-advanced from the content
-    /// box's left edge, baseline at the font's ascent. Characters outside
-    /// the font's printable ASCII range are skipped, as the font has no
-    /// glyph for them.
-    pub fn paint(&self) -> Paint {
-        let Some(font) = self.font else {
-            return Paint::None;
-        };
-        let mut pen = 0.0;
-        let mut run = Vec::new();
-        for ch in self.text.chars() {
-            let code = ch as u32;
-            if !(32..=126).contains(&code) {
-                continue;
-            }
-            let glyph = &font.glyphs[(code - 32) as usize];
-            if glyph.w > 0.0 && glyph.h > 0.0 {
-                run.push(MonochromeSprite {
-                    atlas: font.atlas_id,
-                    region: SpriteRegion {
-                        x: glyph.x,
-                        y: glyph.y,
-                        w: glyph.w,
-                        h: glyph.h,
-                    },
-                    offset: Point::new(
-                        pen + glyph.bearing_x,
-                        font.ascent - glyph.bearing_y - glyph.h,
-                    ),
-                    size: Size::new(glyph.w, glyph.h),
-                    color: self.color,
-                });
-            }
-            pen += glyph.advance;
-        }
-        Paint::Sprites(run)
-    }
-}
-
-/// A white text with no font and the default style.
-pub fn text(text: impl Into<String>) -> TextBuilder {
-    TextBuilder {
-        text: Text {
-            font: None,
-            text: text.into(),
-            color: Color::WHITE,
-        },
-        layout: LayoutStyle::default(),
-    }
-}
-
-pub struct TextBuilder {
-    text: Text,
-    layout: LayoutStyle,
-}
-
-impl TextBuilder {
-    pub fn font(mut self, font: &'static BakedFont) -> Self {
-        self.text.font = Some(font);
-        self
-    }
-    pub fn color(mut self, c: Color) -> Self {
-        self.text.color = c;
-        self
-    }
-    /// The whole style, for a caller that built one elsewhere. A text is a
-    /// leaf sized by its measure, so the default is usually right.
-    pub fn layout(mut self, l: LayoutStyle) -> Self {
-        self.layout = l;
-        self
-    }
-}
-
-impl WidgetBuild for TextBuilder {
-    type Widget = Text;
-    fn spawn(self, me: Handle<Text>, s: &mut Spawner<Text>) -> Text {
-        s.set_component(self.layout);
-        s.set_component(self.text.measure());
-        s.set_component(self.text.paint());
-        s.on(me, |ctx: &mut Context<Text>, e: &SetText| {
-            ctx.me().text = e.0.clone();
-            sync_text(ctx);
-        });
-        s.on(me, |ctx: &mut Context<Text>, e: &SetFont| {
-            ctx.me().font = Some(e.0);
-            sync_text(ctx);
-        });
-        s.on(me, |ctx: &mut Context<Text>, e: &SetColor| {
-            ctx.me().color = e.0;
-            sync_text(ctx);
-        });
-        self.text
-    }
-}
-
-/// Rewrites the measure and paint from the widget's state.
-fn sync_text(ctx: &mut Context<Text>) {
-    let measure = ctx.me().measure();
-    let paint = ctx.me().paint();
-    ctx.set_component(measure);
-    ctx.set_component(paint);
 }
 
 // ---------------------------------------------------------------------------

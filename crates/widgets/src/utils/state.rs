@@ -1,6 +1,5 @@
+use theme::{ColorScheme, ThemeColor};
 use utils::Color;
-
-use crate::color::{ColorScheme, ColorVariant};
 
 // ── WidgetState ───────────────────────────────────────────────────────────────
 
@@ -44,7 +43,7 @@ impl WidgetState {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StateLayer {
     /// The semantic color role whose resolved value is used as the overlay tint.
-    pub color_variant: ColorVariant,
+    pub color_variant: ThemeColor,
     /// Opacity of the overlay in `[0, 1]`.
     pub opacity: f32,
 }

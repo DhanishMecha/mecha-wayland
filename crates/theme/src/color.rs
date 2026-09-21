@@ -1,295 +1,382 @@
 use utils::Color;
 
-//  ColorScheme
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ColorScheme {
-    //  Primary
+    // Primary
     pub primary: Color,
     pub on_primary: Color,
     pub primary_container: Color,
     pub on_primary_container: Color,
 
-    //  Secondary
+    // Secondary
     pub secondary: Color,
     pub on_secondary: Color,
     pub secondary_container: Color,
     pub on_secondary_container: Color,
-    pub secondary_fixed_dim: Color,
 
-    //  Tertiary
-    pub tertiary: Color,
-    pub on_tertiary: Color,
-    pub tertiary_container: Color,
-    pub on_tertiary_container: Color,
-
-    //  Error
+    // Error
     pub error: Color,
     pub on_error: Color,
     pub error_container: Color,
     pub on_error_container: Color,
 
-    //  Background
-    pub background: Color,
-    pub on_background: Color,
+    // Success
+    pub success: Color,
+    pub on_success: Color,
+    pub success_container: Color,
+    pub on_success_container: Color,
 
-    //  Surface
-    pub surface: Color,
-    pub on_surface: Color,
-    pub surface_variant: Color,
-    pub on_surface_variant: Color,
+    // Fixed
+    pub primary_fixed: Color,
+    pub primary_fixed_dim: Color,
+    pub on_primary_fixed: Color,
+    pub on_primary_fixed_variant: Color,
 
-    //  Surface containers (M3 extended variant)
+    pub secondary_fixed: Color,
+    pub secondary_fixed_dim: Color,
+    pub on_secondary_fixed: Color,
+    pub on_secondary_fixed_variant: Color,
+
+    // Surface
     pub surface_dim: Color,
+    pub surface: Color,
     pub surface_bright: Color,
+
     pub surface_container_lowest: Color,
     pub surface_container_low: Color,
     pub surface_container: Color,
     pub surface_container_high: Color,
     pub surface_container_highest: Color,
 
-    //  Outline
+    pub on_surface: Color,
+    pub on_surface_variant: Color,
+
+    // Outline
     pub outline: Color,
     pub outline_variant: Color,
 
-    //  Inverse
+    // Inverse
     pub inverse_surface: Color,
     pub inverse_on_surface: Color,
     pub inverse_primary: Color,
 
-    //  Utility
+    // Effects
     pub scrim: Color,
     pub shadow: Color,
+
+    // Background
+    pub background: Color,
+    pub on_background: Color,
+
+    // Additional
+    pub surface_tint: Color,
+    pub add_ons_section_background: Color,
 }
 
 impl ColorScheme {
-    /// Comet  baseline **light** color scheme.
-    pub fn baseline_light() -> Self {
+    pub const fn baseline_light() -> Self {
         Self {
-            // Primary — Comet Orange
-            primary: Color::from_rgb8(255, 114, 48),
-            on_primary: Color::from_rgb8(5, 5, 5),
-            primary_container: Color::from_rgb8(225, 91, 14),
-            on_primary_container: Color::from_rgb8(244, 244, 245),
+            // Primary
+            primary: Color::from_hex("#ff7230"),
+            on_primary: Color::from_hex("#050505"),
+            primary_container: Color::from_hex("#e15b0e"),
+            on_primary_container: Color::from_hex("#f4f4f5"),
 
             // Secondary
-            secondary: Color::from_rgb8(244, 244, 245),
-            on_secondary: Color::from_rgb8(255, 114, 48),
-            secondary_container: Color::from_rgb8(219, 219, 220),
-            on_secondary_container: Color::from_rgb8(117, 117, 122),
-            secondary_fixed_dim: Color::from_rgb8(200, 200, 203),
-
-            // Tertiary
-            tertiary: Color::from_rgb8(125, 82, 96),
-            on_tertiary: Color::from_rgb8(255, 255, 255),
-            tertiary_container: Color::from_rgb8(255, 216, 228),
-            on_tertiary_container: Color::from_rgb8(55, 11, 30),
+            secondary: Color::from_hex("#f4f4f5"),
+            on_secondary: Color::from_hex("#ff7230"),
+            secondary_container: Color::from_hex("#dbdbdc"),
+            on_secondary_container: Color::from_hex("#75757a"),
 
             // Error
-            error: Color::from_rgb8(255, 66, 66),
-            on_error: Color::from_rgb8(244, 244, 245),
-            error_container: Color::from_rgb8(184, 0, 0),
-            on_error_container: Color::from_rgb8(255, 235, 235),
+            error: Color::from_hex("#ff4242"),
+            on_error: Color::from_hex("#f4f4f5"),
+            error_container: Color::from_hex("#b80000"),
+            on_error_container: Color::from_hex("#ffebeb"),
 
-            // Background
-            background: Color::from_rgb8(244, 244, 245),
-            on_background: Color::from_rgb8(36, 36, 36),
+            // Success
+            success: Color::from_hex("#3cde18"),
+            on_success: Color::from_hex("#ffffff"),
+            success_container: Color::from_hex("#8cf075"),
+            on_success_container: Color::from_hex("#f0fded"),
+
+            // Fixed
+            primary_fixed: Color::from_hex("#e15b0e"),
+            primary_fixed_dim: Color::from_hex("#aa470e"),
+            on_primary_fixed: Color::from_hex("#414144"),
+            on_primary_fixed_variant: Color::from_hex("#dbdbdc"),
+
+            secondary_fixed: Color::from_hex("#dbdbdc"),
+            secondary_fixed_dim: Color::from_hex("#c8c8cb"),
+            on_secondary_fixed: Color::from_hex("#49494b"),
+            on_secondary_fixed_variant: Color::from_hex("#49494b"),
 
             // Surface
-            surface: Color::from_rgb8(219, 219, 220),
-            on_surface: Color::from_rgb8(65, 65, 68),
-            surface_variant: Color::from_rgb8(244, 244, 245),
-            on_surface_variant: Color::from_rgb8(165, 165, 167),
+            surface_dim: Color::from_hex("#ffffff"),
+            surface: Color::from_hex("#dbdbdc"),
+            surface_bright: Color::from_hex("#ffffff"),
 
-            // Surface containers
-            surface_dim: Color::from_rgb8(255, 255, 255),
-            surface_bright: Color::from_rgb8(255, 255, 255),
-            surface_container_lowest: Color::from_rgb8(244, 244, 245),
-            surface_container_low: Color::from_rgb8(237, 237, 238),
-            surface_container: Color::from_rgb8(237, 237, 238),
-            surface_container_high: Color::from_rgb8(244, 244, 245),
-            surface_container_highest: Color::from_rgb8(255, 255, 255),
+            surface_container_lowest: Color::from_hex("#f4f4f5"),
+            surface_container_low: Color::from_hex("#ededee"),
+            surface_container: Color::from_hex("#ededee"),
+            surface_container_high: Color::from_hex("#f4f4f5"),
+            surface_container_highest: Color::from_hex("#ffffff"),
+
+            on_surface: Color::from_hex("#414144"),
+            on_surface_variant: Color::from_hex("#a5a5a7"),
 
             // Outline
-            outline: Color::from_rgb8(200, 200, 203),
-            outline_variant: Color::from_rgb8(244, 244, 245),
+            outline: Color::from_hex("#c8c8cb"),
+            outline_variant: Color::from_hex("#f4f4f5"),
 
             // Inverse
-            inverse_surface: Color::from_rgb8(5, 5, 5),
-            inverse_on_surface: Color::from_rgb8(255, 255, 255),
-            inverse_primary: Color::from_rgb8(36, 36, 36),
+            inverse_surface: Color::from_hex("#050505"),
+            inverse_on_surface: Color::from_hex("#ededee"),
+            inverse_primary: Color::from_hex("#242424"),
 
-            // Utility
-            scrim: Color::from_rgb8(165, 165, 167),
-            shadow: Color::from_rgb8(165, 165, 167),
+            // Effects
+            scrim: Color::from_hex("#a5a5a7"),
+            shadow: Color::from_hex("#a5a5a7"),
+
+            // Background
+            background: Color::from_hex("#f4f4f5"),
+            on_background: Color::from_hex("#242424"),
+
+            // Additional
+            surface_tint: Color::from_hex("#c8c8cb"),
+            add_ons_section_background: Color::from_hex("#19191a"),
         }
     }
 
-    /// Comet baseline **dark** color scheme.
-    pub fn baseline_dark() -> Self {
+    pub const fn baseline_dark() -> Self {
         Self {
-            // Primary — Comet Orange
-            primary: Color::from_rgb8(249, 100, 13),
-            on_primary: Color::from_rgb8(255, 255, 255),
-            primary_container: Color::from_rgb8(252, 166, 123),
-            on_primary_container: Color::from_rgb8(20, 20, 21),
+            // Primary
+            primary: Color::from_hex("#f9640d"),
+            on_primary: Color::from_hex("#ffffff"),
+            primary_container: Color::from_hex("#fca67b"),
+            on_primary_container: Color::from_hex("#141415"),
 
             // Secondary
-            secondary: Color::from_rgb8(20, 20, 21),
-            on_secondary: Color::from_rgb8(255, 114, 48),
-            secondary_container: Color::from_rgb8(35, 35, 37),
-            on_secondary_container: Color::from_rgb8(161, 161, 165),
-            secondary_fixed_dim: Color::from_rgb8(55, 55, 57),
-
-            // Tertiary
-            tertiary: Color::from_rgb8(239, 184, 200),
-            on_tertiary: Color::from_rgb8(74, 37, 50),
-            tertiary_container: Color::from_rgb8(99, 59, 72),
-            on_tertiary_container: Color::from_rgb8(255, 216, 228),
+            secondary: Color::from_hex("#141415"),
+            on_secondary: Color::from_hex("#ff7230"),
+            secondary_container: Color::from_hex("#232325"),
+            on_secondary_container: Color::from_hex("#a1a1a5"),
 
             // Error
-            error: Color::from_rgb8(255, 66, 66),
-            on_error: Color::from_rgb8(245, 245, 245),
-            error_container: Color::from_rgb8(168, 4, 4),
-            on_error_container: Color::from_rgb8(254, 233, 233),
+            error: Color::from_hex("#ff4242"),
+            on_error: Color::from_hex("#f5f5f5"),
+            error_container: Color::from_hex("#a80404"),
+            on_error_container: Color::from_hex("#fee9e9"),
 
-            // Background
-            background: Color::from_rgb8(20, 20, 21),
-            on_background: Color::from_rgb8(245, 245, 245),
+            // Success
+            success: Color::from_hex("#40e830"),
+            on_success: Color::from_hex("#f5f5f5"),
+            success_container: Color::from_hex("#15730d"),
+            on_success_container: Color::from_hex("#fbfffc"),
+
+            // Fixed
+            primary_fixed: Color::from_hex("#fc8845"),
+            primary_fixed_dim: Color::from_hex("#fca67b"),
+            on_primary_fixed: Color::from_hex("#e0e0e1"),
+            on_primary_fixed_variant: Color::from_hex("#232325"),
+
+            secondary_fixed: Color::from_hex("#19191a"),
+            secondary_fixed_dim: Color::from_hex("#373739"),
+            on_secondary_fixed: Color::from_hex("#8d8d91"),
+            on_secondary_fixed_variant: Color::from_hex("#a1a1a5"),
 
             // Surface
-            surface: Color::from_rgb8(35, 35, 37),
-            on_surface: Color::from_rgb8(245, 245, 245),
-            surface_variant: Color::from_rgb8(20, 20, 21),
-            on_surface_variant: Color::from_rgb8(100, 100, 104),
+            surface_dim: Color::from_hex("#050505"),
+            surface: Color::from_hex("#232325"),
+            surface_bright: Color::from_hex("#232325"),
 
-            // Surface containers
-            surface_dim: Color::from_rgb8(5, 5, 5),
-            surface_bright: Color::from_rgb8(35, 35, 37),
-            surface_container_lowest: Color::from_rgb8(5, 5, 5),
-            surface_container_low: Color::from_rgb8(20, 20, 21),
-            surface_container: Color::from_rgb8(25, 25, 26),
-            surface_container_high: Color::from_rgb8(35, 35, 37),
-            surface_container_highest: Color::from_rgb8(55, 55, 57),
+            surface_container_lowest: Color::from_hex("#050505"),
+            surface_container_low: Color::from_hex("#141415"),
+            surface_container: Color::from_hex("#19191a"),
+            surface_container_high: Color::from_hex("#232325"),
+            surface_container_highest: Color::from_hex("#373739"),
+
+            on_surface: Color::from_hex("#f5f5f5"),
+            on_surface_variant: Color::from_hex("#646468"),
 
             // Outline
-            outline: Color::from_rgb8(55, 55, 57),
-            outline_variant: Color::from_rgb8(20, 20, 21),
+            outline: Color::from_hex("#373739"),
+            outline_variant: Color::from_hex("#141415"),
 
             // Inverse
-            inverse_surface: Color::from_rgb8(255, 255, 255),
-            inverse_on_surface: Color::from_rgb8(25, 25, 26),
-            inverse_primary: Color::from_rgb8(245, 245, 245),
+            inverse_surface: Color::from_hex("#ffffff"),
+            inverse_on_surface: Color::from_hex("#19191a"),
+            inverse_primary: Color::from_hex("#f5f5f5"),
 
-            // Utility
-            scrim: Color::from_rgb8(5, 5, 5),
-            shadow: Color::from_rgb8(5, 5, 5),
+            // Effects
+            scrim: Color::from_hex("#050505"),
+            shadow: Color::from_hex("#050505"),
+
+            // Background
+            background: Color::from_hex("#141415"),
+            on_background: Color::from_hex("#f5f5f5"),
+
+            // Additional
+            surface_tint: Color::from_hex("#373739"),
+            add_ons_section_background: Color::from_hex("#19191a"),
         }
     }
 }
 
-//  ColorVariant
+impl Default for ColorScheme {
+    #[inline]
+    fn default() -> Self {
+        Self::baseline_light()
+    }
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ColorVariant {
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ThemeColor {
+    // Primary
     Primary,
     OnPrimary,
     PrimaryContainer,
     OnPrimaryContainer,
 
+    // Secondary
     Secondary,
     OnSecondary,
     SecondaryContainer,
     OnSecondaryContainer,
-    SecondaryFixedDim,
 
-    Tertiary,
-    OnTertiary,
-    TertiaryContainer,
-    OnTertiaryContainer,
-
+    // Error
     Error,
     OnError,
     ErrorContainer,
     OnErrorContainer,
 
-    Background,
-    OnBackground,
+    // Success
+    Success,
+    OnSuccess,
+    SuccessContainer,
+    OnSuccessContainer,
 
-    Surface,
-    OnSurface,
-    SurfaceVariant,
-    OnSurfaceVariant,
+    // Fixed
+    PrimaryFixed,
+    PrimaryFixedDim,
+    OnPrimaryFixed,
+    OnPrimaryFixedVariant,
 
+    SecondaryFixed,
+    SecondaryFixedDim,
+    OnSecondaryFixed,
+    OnSecondaryFixedVariant,
+
+    // Surface
     SurfaceDim,
+    Surface,
     SurfaceBright,
+
     SurfaceContainerLowest,
     SurfaceContainerLow,
     SurfaceContainer,
     SurfaceContainerHigh,
     SurfaceContainerHighest,
 
+    OnSurface,
+    OnSurfaceVariant,
+
+    // Outline
     Outline,
     OutlineVariant,
 
+    // Inverse
     InverseSurface,
     InverseOnSurface,
     InversePrimary,
 
+    // Effects
     Scrim,
     Shadow,
+
+    // Background
+    Background,
+    OnBackground,
+
+    // Additional
+    SurfaceTint,
+    AddOnsSectionBackground,
 }
 
-impl ColorVariant {
-    /// Resolve this role to a concrete [`utils::Color`] from the given scheme.
+impl ThemeColor {
     #[inline]
     pub fn resolve(self, scheme: &ColorScheme) -> Color {
         match self {
-            ColorVariant::Primary => scheme.primary,
-            ColorVariant::OnPrimary => scheme.on_primary,
-            ColorVariant::PrimaryContainer => scheme.primary_container,
-            ColorVariant::OnPrimaryContainer => scheme.on_primary_container,
+            // Primary
+            Self::Primary => scheme.primary,
+            Self::OnPrimary => scheme.on_primary,
+            Self::PrimaryContainer => scheme.primary_container,
+            Self::OnPrimaryContainer => scheme.on_primary_container,
 
-            ColorVariant::Secondary => scheme.secondary,
-            ColorVariant::OnSecondary => scheme.on_secondary,
-            ColorVariant::SecondaryContainer => scheme.secondary_container,
-            ColorVariant::OnSecondaryContainer => scheme.on_secondary_container,
-            ColorVariant::SecondaryFixedDim => scheme.secondary_fixed_dim,
+            // Secondary
+            Self::Secondary => scheme.secondary,
+            Self::OnSecondary => scheme.on_secondary,
+            Self::SecondaryContainer => scheme.secondary_container,
+            Self::OnSecondaryContainer => scheme.on_secondary_container,
 
-            ColorVariant::Tertiary => scheme.tertiary,
-            ColorVariant::OnTertiary => scheme.on_tertiary,
-            ColorVariant::TertiaryContainer => scheme.tertiary_container,
-            ColorVariant::OnTertiaryContainer => scheme.on_tertiary_container,
+            // Error
+            Self::Error => scheme.error,
+            Self::OnError => scheme.on_error,
+            Self::ErrorContainer => scheme.error_container,
+            Self::OnErrorContainer => scheme.on_error_container,
 
-            ColorVariant::Error => scheme.error,
-            ColorVariant::OnError => scheme.on_error,
-            ColorVariant::ErrorContainer => scheme.error_container,
-            ColorVariant::OnErrorContainer => scheme.on_error_container,
+            // Success
+            Self::Success => scheme.success,
+            Self::OnSuccess => scheme.on_success,
+            Self::SuccessContainer => scheme.success_container,
+            Self::OnSuccessContainer => scheme.on_success_container,
 
-            ColorVariant::Background => scheme.background,
-            ColorVariant::OnBackground => scheme.on_background,
+            // Fixed
+            Self::PrimaryFixed => scheme.primary_fixed,
+            Self::PrimaryFixedDim => scheme.primary_fixed_dim,
+            Self::OnPrimaryFixed => scheme.on_primary_fixed,
+            Self::OnPrimaryFixedVariant => scheme.on_primary_fixed_variant,
 
-            ColorVariant::Surface => scheme.surface,
-            ColorVariant::OnSurface => scheme.on_surface,
-            ColorVariant::SurfaceVariant => scheme.surface_variant,
-            ColorVariant::OnSurfaceVariant => scheme.on_surface_variant,
+            Self::SecondaryFixed => scheme.secondary_fixed,
+            Self::SecondaryFixedDim => scheme.secondary_fixed_dim,
+            Self::OnSecondaryFixed => scheme.on_secondary_fixed,
+            Self::OnSecondaryFixedVariant => scheme.on_secondary_fixed_variant,
 
-            ColorVariant::SurfaceDim => scheme.surface_dim,
-            ColorVariant::SurfaceBright => scheme.surface_bright,
-            ColorVariant::SurfaceContainerLowest => scheme.surface_container_lowest,
-            ColorVariant::SurfaceContainerLow => scheme.surface_container_low,
-            ColorVariant::SurfaceContainer => scheme.surface_container,
-            ColorVariant::SurfaceContainerHigh => scheme.surface_container_high,
-            ColorVariant::SurfaceContainerHighest => scheme.surface_container_highest,
+            // Surface
+            Self::SurfaceDim => scheme.surface_dim,
+            Self::Surface => scheme.surface,
+            Self::SurfaceBright => scheme.surface_bright,
 
-            ColorVariant::Outline => scheme.outline,
-            ColorVariant::OutlineVariant => scheme.outline_variant,
+            Self::SurfaceContainerLowest => scheme.surface_container_lowest,
+            Self::SurfaceContainerLow => scheme.surface_container_low,
+            Self::SurfaceContainer => scheme.surface_container,
+            Self::SurfaceContainerHigh => scheme.surface_container_high,
+            Self::SurfaceContainerHighest => scheme.surface_container_highest,
 
-            ColorVariant::InverseSurface => scheme.inverse_surface,
-            ColorVariant::InverseOnSurface => scheme.inverse_on_surface,
-            ColorVariant::InversePrimary => scheme.inverse_primary,
+            Self::OnSurface => scheme.on_surface,
+            Self::OnSurfaceVariant => scheme.on_surface_variant,
 
-            ColorVariant::Scrim => scheme.scrim,
-            ColorVariant::Shadow => scheme.shadow,
+            // Outline
+            Self::Outline => scheme.outline,
+            Self::OutlineVariant => scheme.outline_variant,
+
+            // Inverse
+            Self::InverseSurface => scheme.inverse_surface,
+            Self::InverseOnSurface => scheme.inverse_on_surface,
+            Self::InversePrimary => scheme.inverse_primary,
+
+            // Effects
+            Self::Scrim => scheme.scrim,
+            Self::Shadow => scheme.shadow,
+
+            // Background
+            Self::Background => scheme.background,
+            Self::OnBackground => scheme.on_background,
+
+            // Additional
+            Self::SurfaceTint => scheme.surface_tint,
+            Self::AddOnsSectionBackground => scheme.add_ons_section_background,
         }
     }
 }

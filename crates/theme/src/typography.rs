@@ -1,27 +1,21 @@
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u16)]
 pub enum FontWeight {
-    Thin,       // 100
-    ExtraLight, // 200
-    Light,      // 300
-    Regular,    // 400
-    Medium,     // 500
-    SemiBold,   // 600
-    Bold,       // 700
-    ExtraBold,  // 800
+    Thin = 100,
+    ExtraLight = 200,
+    Light = 300,
+    Regular = 400,
+    Medium = 500,
+    SemiBold = 600,
+    Bold = 700,
+    ExtraBold = 800,
 }
 
 impl FontWeight {
+    #[inline]
     pub const fn value(self) -> u16 {
-        match self {
-            Self::Thin => 100,
-            Self::ExtraLight => 200,
-            Self::Light => 300,
-            Self::Regular => 400,
-            Self::Medium => 500,
-            Self::SemiBold => 600,
-            Self::Bold => 700,
-            Self::ExtraBold => 800,
-        }
+        self as u16
     }
 }
 
@@ -30,13 +24,11 @@ pub struct TypographyStyle {
     pub font_size: f32,
     pub line_height: f32,
     pub letter_spacing: f32,
-    pub word_spacing: f32,
     pub weight: FontWeight,
     pub weight_emphasised: FontWeight,
 }
 
-// Typography
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Typography {
     // Display
     pub display_large: TypographyStyle,
@@ -64,15 +56,14 @@ pub struct Typography {
     pub label_small: TypographyStyle,
 }
 
-impl Default for Typography {
-    fn default() -> Self {
+impl Typography {
+    pub const fn baseline() -> Self {
         Self {
             // Display
             display_large: TypographyStyle {
                 font_size: 52.0,
                 line_height: 66.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Medium,
             },
@@ -80,7 +71,6 @@ impl Default for Typography {
                 font_size: 45.0,
                 line_height: 52.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Medium,
             },
@@ -88,7 +78,6 @@ impl Default for Typography {
                 font_size: 36.0,
                 line_height: 44.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Medium,
             },
@@ -98,15 +87,13 @@ impl Default for Typography {
                 font_size: 32.0,
                 line_height: 40.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Regular,
             },
             headline_medium: TypographyStyle {
                 font_size: 24.0,
                 line_height: 36.0,
-                letter_spacing: 2.0,
-                word_spacing: 0.0,
+                letter_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Regular,
             },
@@ -114,7 +101,6 @@ impl Default for Typography {
                 font_size: 22.0,
                 line_height: 26.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Regular,
             },
@@ -124,7 +110,6 @@ impl Default for Typography {
                 font_size: 20.0,
                 line_height: 26.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Regular,
                 weight_emphasised: FontWeight::Medium,
             },
@@ -132,15 +117,36 @@ impl Default for Typography {
                 font_size: 18.0,
                 line_height: 23.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Regular,
             },
             title_small: TypographyStyle {
                 font_size: 16.0,
                 line_height: 20.0,
-                letter_spacing: 0.1,
-                word_spacing: 0.0,
+                letter_spacing: 1.0,
+                weight: FontWeight::Light,
+                weight_emphasised: FontWeight::Regular,
+            },
+
+            // Label
+            label_large: TypographyStyle {
+                font_size: 14.0,
+                line_height: 20.0,
+                letter_spacing: -0.5,
+                weight: FontWeight::Regular,
+                weight_emphasised: FontWeight::Medium,
+            },
+            label_medium: TypographyStyle {
+                font_size: 12.0,
+                line_height: 16.0,
+                letter_spacing: 0.5,
+                weight: FontWeight::Light,
+                weight_emphasised: FontWeight::Regular,
+            },
+            label_small: TypographyStyle {
+                font_size: 11.0,
+                line_height: 14.0,
+                letter_spacing: 0.5,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Regular,
             },
@@ -150,7 +156,6 @@ impl Default for Typography {
                 font_size: 16.0,
                 line_height: 22.0,
                 letter_spacing: 0.0,
-                word_spacing: 0.0,
                 weight: FontWeight::Regular,
                 weight_emphasised: FontWeight::SemiBold,
             },
@@ -158,7 +163,6 @@ impl Default for Typography {
                 font_size: 14.0,
                 line_height: 18.0,
                 letter_spacing: -0.25,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Medium,
             },
@@ -166,42 +170,22 @@ impl Default for Typography {
                 font_size: 12.0,
                 line_height: 16.0,
                 letter_spacing: 0.4,
-                word_spacing: 0.0,
                 weight: FontWeight::Light,
                 weight_emphasised: FontWeight::Medium,
-            },
-
-            // Label
-            label_large: TypographyStyle {
-                font_size: 14.0,
-                line_height: 20.0,
-                letter_spacing: -0.5,
-                word_spacing: 0.0,
-                weight: FontWeight::Regular,
-                weight_emphasised: FontWeight::Medium,
-            },
-            label_medium: TypographyStyle {
-                font_size: 12.0,
-                line_height: 16.0,
-                letter_spacing: 0.5,
-                word_spacing: 0.0,
-                weight: FontWeight::Light,
-                weight_emphasised: FontWeight::Regular,
-            },
-            label_small: TypographyStyle {
-                font_size: 11.0,
-                line_height: 14.0,
-                letter_spacing: 0.5,
-                word_spacing: 0.0,
-                weight: FontWeight::Light,
-                weight_emphasised: FontWeight::Regular,
             },
         }
     }
 }
 
-//  TextVariant
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl Default for Typography {
+    #[inline]
+    fn default() -> Self {
+        Self::baseline()
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TextVariant {
     DisplayLarge,
     DisplayMedium,
@@ -222,23 +206,23 @@ pub enum TextVariant {
 
 impl TextVariant {
     #[inline]
-    pub fn resolve(self, typography: &Typography) -> &TypographyStyle {
+    pub fn resolve(self, typography: &Typography) -> TypographyStyle {
         match self {
-            TextVariant::DisplayLarge => &typography.display_large,
-            TextVariant::DisplayMedium => &typography.display_medium,
-            TextVariant::DisplaySmall => &typography.display_small,
-            TextVariant::HeadlineLarge => &typography.headline_large,
-            TextVariant::HeadlineMedium => &typography.headline_medium,
-            TextVariant::HeadlineSmall => &typography.headline_small,
-            TextVariant::TitleLarge => &typography.title_large,
-            TextVariant::TitleMedium => &typography.title_medium,
-            TextVariant::TitleSmall => &typography.title_small,
-            TextVariant::BodyLarge => &typography.body_large,
-            TextVariant::BodyMedium => &typography.body_medium,
-            TextVariant::BodySmall => &typography.body_small,
-            TextVariant::LabelLarge => &typography.label_large,
-            TextVariant::LabelMedium => &typography.label_medium,
-            TextVariant::LabelSmall => &typography.label_small,
+            Self::DisplayLarge => typography.display_large,
+            Self::DisplayMedium => typography.display_medium,
+            Self::DisplaySmall => typography.display_small,
+            Self::HeadlineLarge => typography.headline_large,
+            Self::HeadlineMedium => typography.headline_medium,
+            Self::HeadlineSmall => typography.headline_small,
+            Self::TitleLarge => typography.title_large,
+            Self::TitleMedium => typography.title_medium,
+            Self::TitleSmall => typography.title_small,
+            Self::BodyLarge => typography.body_large,
+            Self::BodyMedium => typography.body_medium,
+            Self::BodySmall => typography.body_small,
+            Self::LabelLarge => typography.label_large,
+            Self::LabelMedium => typography.label_medium,
+            Self::LabelSmall => typography.label_small,
         }
     }
 }

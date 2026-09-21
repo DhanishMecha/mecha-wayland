@@ -63,6 +63,57 @@ impl Color {
         }
     }
 
+    /// Construct from a `#RRGGBB` hexadecimal color.
+    ///
+    /// # Panics
+    ///
+    /// Panics at compile time for invalid input when used in a const context.
+    #[inline]
+    pub const fn from_hex(hex: &str) -> Self {
+        assert!(hex.len() == 7);
+        assert!(hex.as_bytes()[0] == b'#');
+
+        Self::rgb(
+            Self::hex_byte(hex.as_bytes(), 1),
+            Self::hex_byte(hex.as_bytes(), 3),
+            Self::hex_byte(hex.as_bytes(), 5),
+        )
+    }
+
+    /// Construct from a `#RRGGBBAA` hexadecimal color.
+    ///
+    /// The alpha component is converted to normalized `[0, 1]`.
+    #[inline]
+    pub const fn from_hex_alpha(hex: &str) -> Self {
+        assert!(hex.len() == 9);
+        assert!(hex.as_bytes()[0] == b'#');
+
+        Self::rgba(
+            Self::hex_byte(hex.as_bytes(), 1),
+            Self::hex_byte(hex.as_bytes(), 3),
+            Self::hex_byte(hex.as_bytes(), 5),
+            Self::hex_byte(hex.as_bytes(), 7),
+        )
+    }
+
+    #[inline]
+    const fn hex_byte(bytes: &[u8], index: usize) -> f32 {
+        let hi = Self::hex_digit(bytes[index]);
+        let lo = Self::hex_digit(bytes[index + 1]);
+
+        ((hi * 16 + lo) as f32) / 255.0
+    }
+
+    #[inline]
+    const fn hex_digit(byte: u8) -> u8 {
+        match byte {
+            b'0'..=b'9' => byte - b'0',
+            b'a'..=b'f' => byte - b'a' + 10,
+            b'A'..=b'F' => byte - b'A' + 10,
+            _ => panic!("invalid hexadecimal color"),
+        }
+    }
+
     /// Return the color as a `[f32; 4]` array — useful for uniform uploads.
     #[inline]
     pub fn as_array(self) -> [f32; 4] {

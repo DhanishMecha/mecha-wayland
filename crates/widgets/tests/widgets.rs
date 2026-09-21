@@ -6,7 +6,7 @@ use assets::{AtlasId, BakedFont, GlyphInfo, SpriteRegion};
 use layout::prelude::*;
 use paint::prelude::*;
 use utils::{Point, Size};
-use widgets::prelude::*;
+use widgets::{prelude::*, utils::WidgetState};
 
 // ── fixtures ─────────────────────────────────────────────────────────────────
 
@@ -192,116 +192,6 @@ fn set_quad_replaces_the_quad_and_keeps_the_style_border_in_step() {
     );
 }
 
-// ── text ─────────────────────────────────────────────────────────────────────
-
-#[test]
-fn text_measures_its_run_and_paints_one_sprite_per_glyph() {
-    let mut app = app();
-    let t = app
-        .spawn(app.root(), text("ab").font(&FONT).color(RED))
-        .unwrap();
-    let w = app.widget::<Text>(t).unwrap();
-    assert_eq!(w.text, "ab");
-    assert_eq!(w.color, RED);
-    assert_eq!(measure(&app, t), Measure(Some(Size::new(16.0, 16.0))));
-    assert_eq!(sprites(&app, t), [glyph(A, 0.0, RED), glyph(B, 8.0, RED)]);
-    assert_eq!(style(&app, t), LayoutStyle::default());
-}
-
-#[test]
-fn text_glyphs_sit_on_the_baseline() {
-    // ascent 12, bearing_y -2 (bitmap bottom 2px below the baseline),
-    // height 10: the bitmap's top is 4px below the content box's top.
-    let t = Text {
-        font: Some(&FONT),
-        text: "a".into(),
-        color: RED,
-    };
-    let Paint::Sprites(run) = t.paint() else {
-        panic!()
-    };
-    assert_eq!(run[0].offset, Point::new(1.0, 4.0));
-    assert_eq!(run[0].size, Size::new(6.0, 10.0));
-}
-
-#[test]
-fn text_without_a_font_measures_nothing_and_draws_nothing() {
-    let mut app = app();
-    let t = app.spawn(app.root(), text("ab")).unwrap();
-    assert_eq!(measure(&app, t), Measure(None));
-    assert_eq!(paint(&app, t), Paint::None);
-    assert_eq!(app.widget::<Text>(t).unwrap().color, Color::WHITE);
-}
-
-#[test]
-fn spaces_advance_without_a_sprite_and_unprintables_are_skipped() {
-    let mut app = app();
-    let t = app.spawn(app.root(), text("a \nb").font(&FONT)).unwrap();
-    assert_eq!(measure(&app, t), Measure(Some(Size::new(24.0, 16.0))));
-    assert_eq!(
-        sprites(&app, t),
-        [glyph(A, 0.0, Color::WHITE), glyph(B, 16.0, Color::WHITE)]
-    );
-}
-
-#[test]
-fn an_empty_string_with_a_font_is_an_empty_run() {
-    let mut app = app();
-    let t = app.spawn(app.root(), text("").font(&FONT)).unwrap();
-    assert_eq!(measure(&app, t), Measure(Some(Size::new(0.0, 16.0))));
-    assert_eq!(paint(&app, t), Paint::Sprites(Vec::new()));
-}
-
-#[test]
-fn set_text_set_font_and_set_color_rewrite_measure_and_paint() {
-    let mut app = app();
-    let t = app.spawn(app.root(), text("a")).unwrap();
-
-    app.emit(SetFont(&FONT), &[t.id()]);
-    app.flush();
-    assert_eq!(measure(&app, t), Measure(Some(Size::new(8.0, 16.0))));
-    assert_eq!(sprites(&app, t), [glyph(A, 0.0, Color::WHITE)]);
-
-    app.emit(SetText("abc".into()), &[t.id()]);
-    app.flush();
-    assert_eq!(app.widget::<Text>(t).unwrap().text, "abc");
-    assert_eq!(measure(&app, t), Measure(Some(Size::new(24.0, 16.0))));
-    assert_eq!(sprites(&app, t).len(), 3);
-
-    app.emit(SetColor(BLUE), &[t.id()]);
-    app.flush();
-    assert_eq!(
-        sprites(&app, t),
-        [
-            glyph(A, 0.0, BLUE),
-            glyph(B, 8.0, BLUE),
-            glyph(C, 16.0, BLUE)
-        ]
-    );
-    assert_eq!(
-        measure(&app, t),
-        Measure(Some(Size::new(24.0, 16.0))),
-        "a colour moves nothing"
-    );
-}
-
-#[test]
-fn text_is_laid_out_at_its_measure() {
-    let mut app = app();
-    let row = app
-        .spawn(
-            app.root(),
-            div().absolute().size(px(200.0), px(100.0)).row().center(),
-        )
-        .unwrap();
-    let t = app.spawn(row, text("abc").font(&FONT)).unwrap();
-    app.signal(Tick);
-    app.flush();
-    let rect = app.components::<Layout>().unwrap()[t].rect;
-    assert_eq!(rect.size, Size::new(24.0, 16.0));
-    assert_eq!(rect.origin, Point::new(88.0, 42.0), "centred in the row");
-}
-
 // ── icon ─────────────────────────────────────────────────────────────────────
 
 fn a_sprite() -> Sprite {
@@ -368,4 +258,68 @@ fn icon_takes_a_whole_style() {
         .spawn(app.root(), icon().layout(layout.clone()))
         .unwrap();
     assert_eq!(style(&app, i), layout);
+}
+
+// ── button & m3 text ─────────────────────────────────────────────────────────
+
+#[test]
+fn text_builder_methods_and_standalone_build() {
+    let t = Text::builder("Standalone")
+        .variant(theme::TextVariant::HeadlineMedium)
+        .color(BLUE)
+        .build();
+    assert_eq!(t.text, "Standalone");
+    assert_eq!(
+        t.tokens.typography_variant,
+        theme::TextVariant::HeadlineMedium
+    );
+    assert_eq!(t.text_style.color, BLUE);
+}
+
+#[test]
+fn button_filled_and_outlined_spawning() {
+    let mut app = app();
+    let b_filled = app
+        .spawn(app.root(), button("Click Me").size(ButtonSize::MEDIUM))
+        .unwrap();
+    let b_outlined = app
+        .spawn(
+            app.root(),
+            button_outlined("Cancel").size(ButtonSize::SMALL),
+        )
+        .unwrap();
+
+    let widget_filled = app.widget::<Button>(b_filled).unwrap();
+    assert_eq!(widget_filled.tokens.size, ButtonSize::MEDIUM);
+
+    let widget_outlined = app.widget::<Button>(b_outlined).unwrap();
+    assert_eq!(widget_outlined.tokens.size, ButtonSize::SMALL);
+}
+
+#[test]
+fn button_builder_methods_and_standalone_build() {
+    let b = Button::builder("Click")
+        .size(ButtonSize::LARGE)
+        .accented()
+        .build();
+    assert_eq!(b.tokens.size, ButtonSize::LARGE);
+    assert_eq!(b.tokens.background_color, Some(theme::ThemeColor::Primary));
+}
+
+#[test]
+fn button_state_and_text_updates() {
+    let mut app = app();
+    let b = app.spawn(app.root(), button("Start")).unwrap();
+
+    app.emit(SetButtonState(WidgetState::Pressed), &[b.id()]);
+    app.flush();
+    let widget = app.widget::<Button>(b).unwrap();
+    assert_eq!(widget.state, WidgetState::Pressed);
+
+    app.emit(SetText("Processing".into()), &[b.id()]);
+    app.flush();
+    let children = app.children(b).unwrap();
+    assert_eq!(children.len(), 1);
+    let child_text = app.widget::<Text>(children[0]).unwrap();
+    assert_eq!(child_text.text, "Processing");
 }

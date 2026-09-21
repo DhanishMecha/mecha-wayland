@@ -7,6 +7,7 @@
 //! `PresentationModule`, `RenderModule`. Each builds on the ones before it;
 //! `examples/counter.rs` is the shape of it.
 
+pub use ::utils;
 pub use app;
 pub use assets;
 pub use interactivity;
@@ -21,6 +22,7 @@ pub use widgets;
 pub use window;
 
 pub mod prelude {
+    pub use ::utils::prelude::*;
     pub use app::prelude::*;
     pub use interactivity::prelude::*;
     pub use layout::prelude::*;
