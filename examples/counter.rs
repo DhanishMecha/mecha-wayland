@@ -3,38 +3,6 @@
 
 use mecha_wayland::prelude::*;
 
-/// A clickable box with a text label. It does nothing on its own —
-/// [`Counter`] wires the `Clicked` event on the handle `button` returns.
-struct Button;
-
-fn button(font: FontId, label: impl Into<String>) -> ButtonBuilder {
-    ButtonBuilder {
-        font,
-        label: label.into(),
-    }
-}
-
-struct ButtonBuilder {
-    font: FontId,
-    label: String,
-}
-
-impl Build for ButtonBuilder {
-    type Widget = Button;
-}
-
-impl Widget for Button {
-    type Builder = ButtonBuilder;
-    fn build(b: ButtonBuilder, me: Handle<Self>, s: &mut Spawner<'_, Self>) -> Self {
-        *s.component_mut::<LayoutStyle>(me).unwrap() =
-            LayoutStyle::default().center().padding_all(px(12.0));
-        *s.component_mut::<Paint>(me).unwrap() =
-            Paint::Quad(Quad::new(Color::rgb(0.25, 0.5, 0.9)).radius(6.0));
-        s.spawn(me, text(b.font, b.label).size(18));
-        Button
-    }
-}
-
 /// A label between a `-` and a `+`; each click moves the count by one.
 struct Counter {
     count: i32,
@@ -63,27 +31,45 @@ impl Widget for Counter {
     type Builder = CounterBuilder;
     fn build(b: CounterBuilder, me: Handle<Self>, s: &mut Spawner<'_, Self>) -> Self {
         *s.component_mut::<LayoutStyle>(me).unwrap() =
-            LayoutStyle::default().column().center().gap(px(12.0));
+            LayoutStyle::default().column().center().gap(px(16.0));
 
-        let label = s.spawn(me, text(b.font, "0").size(24));
+        let label = s.spawn(
+            me,
+            text(b.font, "0")
+                .size(32)
+                .color(s.color(ColorRole::OnSurface)),
+        );
         let row = s.spawn(
             me,
-            div().style(LayoutStyle::default().row().center().gap(px(8.0))),
+            div().style(LayoutStyle::default().row().center().gap(px(12.0))),
         );
-        let minus = s.spawn(row, button(b.font, "-"));
-        let plus = s.spawn(row, button(b.font, "+"));
+        s.spawn(
+            row,
+            button(b.font, " - ")
+                .border_radius(10.)
+                .on_click(move |ctx| step_counter(ctx, me, label, -1)),
+        );
 
-        s.on::<Clicked>(minus, move |ctx, _| {
-            let count = ctx.me().step(-1);
-            ctx.at(label).unwrap().set_text(count.to_string());
-        });
-
-        s.on::<Clicked>(plus, move |ctx, _| {
-            let count = ctx.me().step(1);
-            ctx.at(label).unwrap().set_text(count.to_string());
-        });
+        s.spawn(
+            row,
+            button(b.font, " + ").on_click(move |ctx| step_counter(ctx, me, label, 1)),
+        );
 
         Counter { count: 0 }
+    }
+}
+
+fn step_counter(
+    ctx: &mut Context<'_, Button>,
+    me: Handle<Counter>,
+    label: Handle<Text>,
+    delta: i32,
+) {
+    if let Some(mut cctx) = ctx.at(me) {
+        let count = cctx.me().step(delta);
+        if let Some(mut lctx) = cctx.at(label) {
+            lctx.set_text(count.to_string());
+        }
     }
 }
 
@@ -104,7 +90,7 @@ impl Widget for Shell {
             window()
                 .title("counter")
                 .clear(Color::rgb(0.12, 0.12, 0.14))
-                .layout(LayoutStyle::default().center().size(px(240.0), px(160.0))),
+                .layout(LayoutStyle::default().center().size(px(260.0), px(180.0))),
         );
         s.on::<CloseRequested>(win, |ctx, _| ctx.signal(Stop));
         s.spawn(win, counter(b.font));
@@ -119,6 +105,7 @@ fn main() {
         .add_module(WindowModule)
         .add_module(InteractivityModule)
         .add_module(RenderModule::default())
+        .add_module(MechanixTheme::dark())
         .insert_resource(Atlas::new());
     app.add_module(RingModule::default())
         .add_module(
