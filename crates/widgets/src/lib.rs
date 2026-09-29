@@ -61,11 +61,15 @@ mod text;
 pub use div::{Div, DivBuilder, DivContext, div};
 pub use icon::{Icon, IconBuilder, IconContext, icon};
 pub use image::{Image, ImageBuilder, ImageContext, image};
-pub use text::{Text, TextBuilder, TextContext, text};
+pub use text::{
+    Text, TextAlign, TextBuilder, TextContext, TextDecoration, TextOverflow, TextWrap,
+    VerticalTrim, text,
+};
 
 pub mod prelude {
     pub use crate::{
         Div, DivBuilder, DivContext, Icon, IconBuilder, IconContext, Image, ImageBuilder,
-        ImageContext, Text, TextBuilder, TextContext, div, icon, image, text,
+        ImageContext, Text, TextAlign, TextBuilder, TextContext, TextDecoration, TextOverflow,
+        TextWrap, VerticalTrim, div, icon, image, text,
     };
 }

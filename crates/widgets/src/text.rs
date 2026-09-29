@@ -7,11 +7,64 @@ use geometry::{Color, Point, Size};
 use layout::{LayoutStyle, Measure};
 use paint::{MonochromeSprite, Paint, PaintContext};
 
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VerticalTrim {
+    #[default]
+    Normal,
+    CapHeight,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextAlign {
+    #[default]
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextOverflow {
+    #[default]
+    Clip,
+    Ellipsis,
+    Visible,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextDecoration {
+    #[default]
+    None,
+    Underline,
+    Strikethrough,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextWrap {
+    #[default]
+    NoWrap,
+    Word,
+    BreakAll, // or Char
+}
+
 pub struct Text {
     font: FontId,
     px: u16,
     color: Color,
     string: String,
+    line_height: Option<f32>,
+    letter_spacing: Option<f32>,
+    vertical_trim: VerticalTrim,
+    align: TextAlign,
+    overflow: TextOverflow,
+    decoration: TextDecoration,
+    wrap: TextWrap,
+    max_lines: Option<usize>,
 }
 
 impl Text {
@@ -27,6 +80,30 @@ impl Text {
     pub fn color(&self) -> Color {
         self.color
     }
+    pub fn line_height(&self) -> Option<f32> {
+        self.line_height
+    }
+    pub fn letter_spacing(&self) -> Option<f32> {
+        self.letter_spacing
+    }
+    pub fn vertical_trim(&self) -> VerticalTrim {
+        self.vertical_trim
+    }
+    pub fn align(&self) -> TextAlign {
+        self.align
+    }
+    pub fn overflow(&self) -> TextOverflow {
+        self.overflow
+    }
+    pub fn decoration(&self) -> TextDecoration {
+        self.decoration
+    }
+    pub fn wrap(&self) -> TextWrap {
+        self.wrap
+    }
+    pub fn max_lines(&self) -> Option<usize> {
+        self.max_lines
+    }
 }
 
 pub fn text(font: FontId, s: impl Into<String>) -> TextBuilder {
@@ -36,6 +113,14 @@ pub fn text(font: FontId, s: impl Into<String>) -> TextBuilder {
         style: LayoutStyle::default(),
         px: 16,
         color: Color::WHITE,
+        line_height: None,
+        letter_spacing: None,
+        vertical_trim: VerticalTrim::Normal,
+        align: TextAlign::Left,
+        overflow: TextOverflow::Clip,
+        decoration: TextDecoration::None,
+        wrap: TextWrap::NoWrap,
+        max_lines: None,
     }
 }
 
@@ -45,9 +130,21 @@ pub struct TextBuilder {
     style: LayoutStyle,
     px: u16,
     color: Color,
+    line_height: Option<f32>,
+    letter_spacing: Option<f32>,
+    vertical_trim: VerticalTrim,
+    align: TextAlign,
+    overflow: TextOverflow,
+    decoration: TextDecoration,
+    wrap: TextWrap,
+    max_lines: Option<usize>,
 }
 
 impl TextBuilder {
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = font;
+        self
+    }
     pub fn style(mut self, style: LayoutStyle) -> Self {
         self.style = style;
         self
@@ -58,6 +155,38 @@ impl TextBuilder {
     }
     pub fn color(mut self, color: Color) -> Self {
         self.color = color;
+        self
+    }
+    pub fn line_height(mut self, height: f32) -> Self {
+        self.line_height = Some(height);
+        self
+    }
+    pub fn letter_spacing(mut self, spacing: f32) -> Self {
+        self.letter_spacing = Some(spacing);
+        self
+    }
+    pub fn vertical_trim(mut self, trim: VerticalTrim) -> Self {
+        self.vertical_trim = trim;
+        self
+    }
+    pub fn align(mut self, align: TextAlign) -> Self {
+        self.align = align;
+        self
+    }
+    pub fn overflow(mut self, overflow: TextOverflow) -> Self {
+        self.overflow = overflow;
+        self
+    }
+    pub fn decoration(mut self, decoration: TextDecoration) -> Self {
+        self.decoration = decoration;
+        self
+    }
+    pub fn wrap(mut self, wrap: TextWrap) -> Self {
+        self.wrap = wrap;
+        self
+    }
+    pub fn max_lines(mut self, max_lines: usize) -> Self {
+        self.max_lines = Some(max_lines);
         self
     }
 }
@@ -81,6 +210,14 @@ impl Widget for Text {
             px: b.px,
             color: b.color,
             string: b.string,
+            line_height: b.line_height,
+            letter_spacing: b.letter_spacing,
+            vertical_trim: b.vertical_trim,
+            align: b.align,
+            overflow: b.overflow,
+            decoration: b.decoration,
+            wrap: b.wrap,
+            max_lines: b.max_lines,
         }
     }
 }
@@ -126,6 +263,15 @@ pub trait TextContext {
     fn set_text(&mut self, text: impl Into<String>);
     fn set_size(&mut self, px: u16);
     fn set_color(&mut self, color: Color);
+    fn set_font(&mut self, font: FontId);
+    fn set_line_height(&mut self, height: f32);
+    fn set_letter_spacing(&mut self, spacing: f32);
+    fn set_vertical_trim(&mut self, trim: VerticalTrim);
+    fn set_align(&mut self, align: TextAlign);
+    fn set_overflow(&mut self, overflow: TextOverflow);
+    fn set_decoration(&mut self, decoration: TextDecoration);
+    fn set_wrap(&mut self, wrap: TextWrap);
+    fn set_max_lines(&mut self, max_lines: Option<usize>);
 }
 
 impl TextContext for Context<'_, Text> {
@@ -167,6 +313,51 @@ impl TextContext for Context<'_, Text> {
         }
         self.set_paint(paint);
         self.me().color = color;
+    }
+
+    // Placeholder
+    fn set_font(&mut self, font: FontId) {
+        self.me().font = font;
+    }
+
+    // Placeholder
+    fn set_line_height(&mut self, height: f32) {
+        self.me().line_height = Some(height);
+    }
+
+    // Placeholder
+    fn set_letter_spacing(&mut self, spacing: f32) {
+        self.me().letter_spacing = Some(spacing);
+    }
+
+    // Placeholder
+    fn set_vertical_trim(&mut self, trim: VerticalTrim) {
+        self.me().vertical_trim = trim;
+    }
+
+    // Placeholder
+    fn set_align(&mut self, align: TextAlign) {
+        self.me().align = align;
+    }
+
+    // Placeholder
+    fn set_overflow(&mut self, overflow: TextOverflow) {
+        self.me().overflow = overflow;
+    }
+
+    // Placeholder
+    fn set_decoration(&mut self, decoration: TextDecoration) {
+        self.me().decoration = decoration;
+    }
+
+    // Placeholder
+    fn set_wrap(&mut self, wrap: TextWrap) {
+        self.me().wrap = wrap;
+    }
+
+    // Placeholder
+    fn set_max_lines(&mut self, max_lines: Option<usize>) {
+        self.me().max_lines = max_lines;
     }
 }
 
@@ -244,10 +435,28 @@ mod tests {
     #[test]
     fn builder_verbs_set_the_right_fields() {
         let (_, font) = inter();
-        let b = text(font, "hi").size(24).color(Color::BLACK);
+        let b = text(font, "hi")
+            .size(24)
+            .color(Color::BLACK)
+            .line_height(32.0)
+            .letter_spacing(1.5)
+            .vertical_trim(VerticalTrim::CapHeight)
+            .align(TextAlign::Center)
+            .overflow(TextOverflow::Ellipsis)
+            .decoration(TextDecoration::Underline)
+            .wrap(TextWrap::Word)
+            .max_lines(3);
         assert_eq!(b.string, "hi");
         assert_eq!(b.px, 24);
         assert_eq!(b.color, Color::BLACK);
         assert_eq!(b.font, font);
+        assert_eq!(b.line_height, Some(32.0));
+        assert_eq!(b.letter_spacing, Some(1.5));
+        assert_eq!(b.vertical_trim, VerticalTrim::CapHeight);
+        assert_eq!(b.align, TextAlign::Center);
+        assert_eq!(b.overflow, TextOverflow::Ellipsis);
+        assert_eq!(b.decoration, TextDecoration::Underline);
+        assert_eq!(b.wrap, TextWrap::Word);
+        assert_eq!(b.max_lines, Some(3));
     }
 }
