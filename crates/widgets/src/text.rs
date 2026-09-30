@@ -125,19 +125,19 @@ pub fn text(font: FontId, s: impl Into<String>) -> TextBuilder {
 }
 
 pub struct TextBuilder {
-    font: FontId,
-    string: String,
-    style: LayoutStyle,
-    px: u16,
-    color: Color,
-    line_height: Option<f32>,
-    letter_spacing: Option<f32>,
-    vertical_trim: VerticalTrim,
-    align: TextAlign,
-    overflow: TextOverflow,
-    decoration: TextDecoration,
-    wrap: TextWrap,
-    max_lines: Option<usize>,
+    pub(crate) font: FontId,
+    pub(crate) string: String,
+    pub(crate) style: LayoutStyle,
+    pub(crate) px: u16,
+    pub(crate) color: Color,
+    pub(crate) line_height: Option<f32>,
+    pub(crate) letter_spacing: Option<f32>,
+    pub(crate) vertical_trim: VerticalTrim,
+    pub(crate) align: TextAlign,
+    pub(crate) overflow: TextOverflow,
+    pub(crate) decoration: TextDecoration,
+    pub(crate) wrap: TextWrap,
+    pub(crate) max_lines: Option<usize>,
 }
 
 impl TextBuilder {
@@ -205,6 +205,7 @@ impl Widget for Text {
         };
         *s.component_mut::<Paint>(me).unwrap() = Paint::Monochrome(sprites);
         *s.component_mut::<Measure>(me).unwrap() = Measure::fixed(size);
+
         Text {
             font: b.font,
             px: b.px,
@@ -277,6 +278,9 @@ pub trait TextContext {
 impl TextContext for Context<'_, Text> {
     fn set_text(&mut self, text: impl Into<String>) {
         let text = text.into();
+        if self.me().string == text {
+            return;
+        }
         let (font, px, color) = {
             let w = self.me();
             (w.font, w.px, w.color)
@@ -291,6 +295,9 @@ impl TextContext for Context<'_, Text> {
     }
 
     fn set_size(&mut self, px: u16) {
+        if self.me().px == px {
+            return;
+        }
         let (font, color, string) = {
             let w = self.me();
             (w.font, w.color, w.string.clone())
@@ -305,6 +312,9 @@ impl TextContext for Context<'_, Text> {
     }
 
     fn set_color(&mut self, color: Color) {
+        if self.me().color == color {
+            return;
+        }
         let mut paint = self.paint().clone();
         if let Paint::Monochrome(sprites) = &mut paint {
             for sprite in sprites.iter_mut() {
@@ -317,46 +327,73 @@ impl TextContext for Context<'_, Text> {
 
     // Placeholder
     fn set_font(&mut self, font: FontId) {
+        if self.me().font == font {
+            return;
+        }
         self.me().font = font;
     }
 
     // Placeholder
     fn set_line_height(&mut self, height: f32) {
+        if self.me().line_height == Some(height) {
+            return;
+        }
         self.me().line_height = Some(height);
     }
 
     // Placeholder
     fn set_letter_spacing(&mut self, spacing: f32) {
+        if self.me().letter_spacing == Some(spacing) {
+            return;
+        }
         self.me().letter_spacing = Some(spacing);
     }
 
     // Placeholder
     fn set_vertical_trim(&mut self, trim: VerticalTrim) {
+        if self.me().vertical_trim == trim {
+            return;
+        }
         self.me().vertical_trim = trim;
     }
 
     // Placeholder
     fn set_align(&mut self, align: TextAlign) {
+        if self.me().align == align {
+            return;
+        }
         self.me().align = align;
     }
 
     // Placeholder
     fn set_overflow(&mut self, overflow: TextOverflow) {
+        if self.me().overflow == overflow {
+            return;
+        }
         self.me().overflow = overflow;
     }
 
     // Placeholder
     fn set_decoration(&mut self, decoration: TextDecoration) {
+        if self.me().decoration == decoration {
+            return;
+        }
         self.me().decoration = decoration;
     }
 
     // Placeholder
     fn set_wrap(&mut self, wrap: TextWrap) {
+        if self.me().wrap == wrap {
+            return;
+        }
         self.me().wrap = wrap;
     }
 
     // Placeholder
     fn set_max_lines(&mut self, max_lines: Option<usize>) {
+        if self.me().max_lines == max_lines {
+            return;
+        }
         self.me().max_lines = max_lines;
     }
 }

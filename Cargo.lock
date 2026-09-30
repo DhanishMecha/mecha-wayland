@@ -372,6 +372,7 @@ dependencies = [
  "gles",
  "interactivity",
  "layout",
+ "mechanix-widgets",
  "paint",
  "presentation",
  "render",
@@ -380,6 +381,18 @@ dependencies = [
  "wayland",
  "widgets",
  "window",
+]
+
+[[package]]
+name = "mechanix-widgets"
+version = "0.1.0"
+dependencies = [
+ "app",
+ "atlas",
+ "geometry",
+ "layout",
+ "theme",
+ "widgets",
 ]
 
 [[package]]

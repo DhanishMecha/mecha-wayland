@@ -1,19 +1,19 @@
 //! A counter that demonstrates theme-aware colors and runtime theme switching.
 //! Run under a Wayland session: `cargo run --example themed_counter`.
 
+use mecha_wayland::mechanix_widgets::prelude::{FontBook, TextContextExt, text};
 use mecha_wayland::prelude::*;
+use theme::{ColorRole, TextVariant};
 
 struct Button;
 
-fn button(font: FontId, label: impl Into<String>) -> ButtonBuilder {
+fn button(label: impl Into<String>) -> ButtonBuilder {
     ButtonBuilder {
-        font,
         label: label.into(),
     }
 }
 
 struct ButtonBuilder {
-    font: FontId,
     label: String,
 }
 
@@ -28,18 +28,17 @@ impl Widget for Button {
             LayoutStyle::default().center().padding_all(px(12.0));
         *s.component_mut::<Paint>(me).unwrap() =
             Paint::Quad(Quad::new(s.color(ColorRole::PrimaryContainer)).radius(6.0));
+
         let label = s.spawn(
             me,
-            text(b.font, b.label)
-                .color(s.color(ColorRole::OnPrimaryContainer))
-                .size(18),
+            text(b.label)
+                .variant(TextVariant::LabelLarge)
+                .color(ColorRole::OnPrimaryContainer),
         );
 
         s.on_theme(me, move |ctx| {
             let bg = ctx.color(ColorRole::PrimaryContainer);
-            let fg = ctx.color(ColorRole::OnPrimaryContainer);
             ctx.set_paint(Paint::Quad(Quad::new(bg).radius(6.0)));
-            ctx.at(label).unwrap().set_color(fg);
         });
 
         Button
@@ -50,13 +49,11 @@ struct Counter {
     count: i32,
 }
 
-fn counter(font: FontId) -> CounterBuilder {
-    CounterBuilder { font }
+fn counter() -> CounterBuilder {
+    CounterBuilder
 }
 
-struct CounterBuilder {
-    font: FontId,
-}
+struct CounterBuilder;
 
 impl Build for CounterBuilder {
     type Widget = Counter;
@@ -65,24 +62,28 @@ impl Build for CounterBuilder {
 impl Widget for Counter {
     type Builder = CounterBuilder;
     fn build(b: CounterBuilder, me: Handle<Self>, s: &mut Spawner<'_, Self>) -> Self {
-        *s.component_mut::<LayoutStyle>(me).unwrap() =
-            LayoutStyle::default().column().center().fill().gap(px(12.0));
+        *s.component_mut::<LayoutStyle>(me).unwrap() = LayoutStyle::default()
+            .column()
+            .center()
+            .fill()
+            .gap(px(12.0));
         *s.component_mut::<Paint>(me).unwrap() =
             Paint::Quad(Quad::new(s.color(ColorRole::Surface)));
 
         let label = s.spawn(
             me,
-            text(b.font, "0")
-                .color(s.color(ColorRole::OnSurface))
-                .size(24),
+            text("0")
+                .variant(TextVariant::TitleLarge)
+                .color(ColorRole::OnSurface),
         );
+
         let row = s.spawn(
             me,
             div().style(LayoutStyle::default().row().center().gap(px(8.0))),
         );
-        let minus = s.spawn(row, button(b.font, "-"));
-        let plus = s.spawn(row, button(b.font, "+"));
-        let toggle = s.spawn(me, button(b.font, "Toggle Theme"));
+        let minus = s.spawn(row, button("-"));
+        let plus = s.spawn(row, button("+"));
+        let toggle = s.spawn(me, button("Toggle Theme"));
 
         s.on::<Clicked>(minus, move |ctx, _| {
             ctx.me().count -= 1;
@@ -106,9 +107,7 @@ impl Widget for Counter {
 
         s.on_theme(me, move |ctx| {
             let bg = ctx.color(ColorRole::Surface);
-            let fg = ctx.color(ColorRole::OnSurface);
             ctx.set_paint(Paint::Quad(Quad::new(bg)));
-            ctx.at(label).unwrap().set_color(fg);
         });
 
         Counter { count: 0 }
@@ -118,7 +117,6 @@ impl Widget for Counter {
 struct Shell;
 struct ShellBuilder {
     root: NodeId,
-    font: FontId,
 }
 impl Build for ShellBuilder {
     type Widget = Shell;
@@ -133,7 +131,7 @@ impl Widget for Shell {
                 .layout(LayoutStyle::default().center().size(px(240.0), px(180.0))),
         );
         s.on::<CloseRequested>(win, |ctx, _| ctx.signal(Stop));
-        s.spawn(win, counter(b.font));
+        s.spawn(win, counter());
         Shell
     }
 }
@@ -149,6 +147,14 @@ fn main() {
 
     app.add_module(MechanixTheme::dark());
 
+    let font = app
+        .resource_mut::<Atlas>()
+        .add_font(include_bytes!(
+            "../crates/atlas/tests/fixtures/Inter-Regular.ttf"
+        ))
+        .expect("Inter loads");
+    app.insert_resource(FontBook::new(font));
+
     app.add_module(RingModule::default())
         .add_module(
             WaylandModule::new()
@@ -162,14 +168,7 @@ fn main() {
             budget: Budget::default(),
         });
 
-    let font = app
-        .resource_mut::<Atlas>()
-        .add_font(include_bytes!(
-            "../crates/atlas/tests/fixtures/Inter-Regular.ttf"
-        ))
-        .expect("Inter loads");
-
     let root = app.root();
-    app.spawn(root, ShellBuilder { root, font });
+    app.spawn(root, ShellBuilder { root });
     app.run();
 }

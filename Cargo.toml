@@ -20,6 +20,7 @@ wayland.workspace = true
 widgets.workspace = true
 window.workspace = true
 theme.workspace = true
+mechanix-widgets.workspace = true
 
 [workspace]
 members = [
@@ -37,6 +38,7 @@ members = [
     "crates/widgets",
     "crates/window",
     "crates/theme",
+    "crates/mechanix-widgets",
 ]
 resolver = "3"
 
@@ -55,6 +57,7 @@ wayland = { path = "crates/wayland" }
 widgets = { path = "crates/widgets" }
 window = { path = "crates/window" }
 theme = { path = "crates/theme" }
+mechanix-widgets = { path = "crates/mechanix-widgets" }
 bitflags = "2"
 fontdue = "0.9"
 gbm = { version = "0.18", default-features = false }
