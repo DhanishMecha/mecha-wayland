@@ -47,28 +47,55 @@ impl Widget for Counter {
             row,
             button(b.font, " - ")
                 .border_radius(10.)
-                .on_click(move |ctx| step_counter(ctx, me, label, -1)),
+                .on_click(move |ctx| step_counter_notify(ctx, me, label, -1)),
         );
 
         s.spawn(
             row,
-            button(b.font, " + ").on_click(move |ctx| step_counter(ctx, me, label, 1)),
+            button(b.font, " + ")
+                .on_click(move |ctx| step_counter_update(ctx, me, label, 1)),
         );
 
         Counter { count: 0 }
     }
 }
 
-fn step_counter(
+/// Approach 1: Using `update(...)` closure (auto-notifies at end of closure)
+fn step_counter_update(
     ctx: &mut Context<'_, Button>,
     me: Handle<Counter>,
     label: Handle<Text>,
     delta: i32,
 ) {
+    let color = ctx.color(ColorRole::OnSurface);
     if let Some(mut cctx) = ctx.at(me) {
         let count = cctx.me().step(delta);
         if let Some(mut lctx) = cctx.at(label) {
-            lctx.set_text(count.to_string());
+            // Option A: `update` automatically calls notify() when the closure finishes
+            lctx.update(|t| {
+                t.string = count.to_string();
+                t.color = color;
+            });
+        }
+    }
+}
+
+/// Approach 2: Using direct field mutation + `notify()` (manual reconciliation)
+fn step_counter_notify(
+    ctx: &mut Context<'_, Button>,
+    me: Handle<Counter>,
+    label: Handle<Text>,
+    delta: i32,
+) {
+    let color = ctx.color(ColorRole::OnSurface);
+    if let Some(mut cctx) = ctx.at(me) {
+        let count = cctx.me().step(delta);
+        if let Some(mut lctx) = cctx.at(label) {
+            // Option B: Mutate fields directly on `me()`, then explicitly call `notify()`
+            let text = lctx.me();
+            text.string = count.to_string();
+            text.color = color;
+            lctx.notify();
         }
     }
 }

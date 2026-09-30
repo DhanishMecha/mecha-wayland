@@ -68,13 +68,17 @@ pub use div::{Div, DivBuilder, DivContext, div};
 pub use icon::{Icon, IconBuilder, IconContext, icon};
 pub use image::{Image, ImageBuilder, ImageContext, image};
 pub use state::{StateLayer, WidgetState};
-pub use text::{Text, TextBuilder, TextContext, text};
+pub use text::{
+    Text, TextAlign, TextBuilder, TextContext, TextDecoration, TextOverflow, TextWrap,
+    VerticalTrim, text,
+};
 
 pub mod prelude {
     pub use crate::{
         Button, ButtonBuilder, ButtonContext, ButtonOverrides, ButtonSize, ButtonStyle,
         ButtonVariant, Div, DivBuilder, DivContext, Icon, IconBuilder, IconContext, Image,
         ImageBuilder, ImageContext, ResolvedButtonStyle, SetButtonState, StateLayer, Text,
-        TextBuilder, TextContext, WidgetState, button, div, icon, image, text,
+        TextAlign, TextBuilder, TextContext, TextDecoration, TextOverflow, TextWrap, VerticalTrim,
+        WidgetState, button, div, icon, image, text,
     };
 }
