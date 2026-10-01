@@ -26,6 +26,7 @@ pub fn icon(sprite: SpriteId) -> IconBuilder {
         sprite,
         style: LayoutStyle::default(),
         color: Color::WHITE,
+        size: None,
     }
 }
 
@@ -33,6 +34,7 @@ pub struct IconBuilder {
     sprite: SpriteId,
     style: LayoutStyle,
     color: Color,
+    size: Option<Size>,
 }
 
 impl IconBuilder {
@@ -42,6 +44,10 @@ impl IconBuilder {
     }
     pub fn color(mut self, color: Color) -> Self {
         self.color = color;
+        self
+    }
+    pub fn size(mut self, size: Size) -> Self {
+        self.size = Some(size);
         self
     }
 }
@@ -57,16 +63,17 @@ impl Widget for Icon {
         // Atlas::sprite panics on an id this atlas did not mint: a
         // caller bug, the same class as an unregistered component.
         let sprite = s.resource::<Atlas>().sprite(b.sprite);
+        let size = b.size.unwrap_or(sprite.size);
         *s.component_mut::<Paint>(me).unwrap() = Paint::Monochrome(vec![MonochromeSprite::new(
             sprite.tile,
             Point::ZERO,
-            sprite.size,
+            size,
             b.color,
         )]);
-        *s.component_mut::<Measure>(me).unwrap() = Measure::fixed(sprite.size);
+        *s.component_mut::<Measure>(me).unwrap() = Measure::fixed(size);
         Icon {
             tile: sprite.tile,
-            size: sprite.size,
+            size,
             color: b.color,
         }
     }
@@ -138,9 +145,12 @@ mod tests {
 
     #[test]
     fn builder_verbs_set_the_right_fields() {
-        let b = icon(SpriteId(0)).color(Color::BLACK);
+        let b = icon(SpriteId(0))
+            .color(Color::BLACK)
+            .size(Size::new(16.0, 16.0));
         assert_eq!(b.sprite, SpriteId(0));
         assert_eq!(b.color, Color::BLACK);
+        assert_eq!(b.size, Some(Size::new(16.0, 16.0)));
     }
 
     #[test]

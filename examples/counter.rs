@@ -15,12 +15,13 @@ impl Counter {
     }
 }
 
-fn counter(font: FontId) -> CounterBuilder {
-    CounterBuilder { font }
+fn counter(font: FontId, icon: SpriteId) -> CounterBuilder {
+    CounterBuilder { font, icon }
 }
 
 struct CounterBuilder {
     font: FontId,
+    icon: SpriteId,
 }
 
 impl Build for CounterBuilder {
@@ -32,6 +33,13 @@ impl Widget for Counter {
     fn build(b: CounterBuilder, me: Handle<Self>, s: &mut Spawner<'_, Self>) -> Self {
         *s.component_mut::<LayoutStyle>(me).unwrap() =
             LayoutStyle::default().column().center().gap(px(16.0));
+
+        s.spawn(
+            me,
+            icon(b.icon)
+                .size(Size::new(48.0, 48.0))
+                .color(s.color(ColorRole::Primary)),
+        );
 
         let label = s.spawn(
             me,
@@ -105,6 +113,7 @@ struct Shell;
 struct ShellBuilder {
     root: NodeId,
     font: FontId,
+    icon: SpriteId,
 }
 impl Build for ShellBuilder {
     type Widget = Shell;
@@ -117,10 +126,10 @@ impl Widget for Shell {
             window()
                 .title("counter")
                 .clear(Color::rgb(0.12, 0.12, 0.14))
-                .layout(LayoutStyle::default().center().size(px(260.0), px(180.0))),
+                .layout(LayoutStyle::default().center().size(px(260.0), px(240.0))),
         );
         s.on::<CloseRequested>(win, |ctx, _| ctx.signal(Stop));
-        s.spawn(win, counter(b.font));
+        s.spawn(win, counter(b.font, b.icon));
         Shell
     }
 }
@@ -154,7 +163,19 @@ fn main() {
         ))
         .expect("Inter loads");
 
+    let icon_png = Bitmap::from_png(include_bytes!("icon.png")).expect("icon png loads");
+    let icon_bitmap = Bitmap {
+        width: icon_png.width,
+        height: icon_png.height,
+        format: Format::R8,
+        pixels: icon_png.pixels.chunks_exact(4).map(|p| p[3]).collect(),
+    };
+    let icon = app
+        .resource_mut::<Atlas>()
+        .insert(Class::Icon, &icon_bitmap)
+        .expect("icon inserts");
+
     let root = app.root();
-    app.spawn(root, ShellBuilder { root, font });
+    app.spawn(root, ShellBuilder { root, font, icon });
     app.run();
 }

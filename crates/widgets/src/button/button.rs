@@ -1,11 +1,12 @@
 use super::button_style::{ButtonOverrides, ButtonSize, ButtonStyle, ButtonVariant};
 use crate::div::{Div, DivContext, div};
+use crate::icon::{Icon, IconContext, icon};
 use crate::state::WidgetState;
 use crate::text::{Text, TextContext, text};
 use WidgetState::*;
 use app::{Build, Context, Handle, Spawner, Widget};
-use atlas::FontId;
-use geometry::{Color, Insets};
+use atlas::{FontId, SpriteId};
+use geometry::{Color, Insets, Size};
 use interactivity::{Clicked, Enter, Exit, Press, Release};
 use layout::{LayoutStyle, Val, px};
 use theme::{ColorRole, SpawnerThemeExt, ThemeReader};
@@ -22,6 +23,7 @@ pub struct Button {
     pub state: WidgetState,
     pub div_handle: Option<Handle<Div>>,
     pub label_handle: Option<Handle<Text>>,
+    pub icon_handle: Option<Handle<Icon>>,
 }
 
 /// Create a [`Button`] builder (defaults to filled).
@@ -43,6 +45,7 @@ pub struct ButtonBuilder {
     width: Option<Val>,
     height: Option<Val>,
     label: String,
+    icon: Option<SpriteId>,
     on_click: Option<OnClickHandler>,
 }
 
@@ -58,6 +61,7 @@ impl ButtonBuilder {
             width: None,
             height: None,
             label: text_content.into(),
+            icon: None,
             on_click: None,
         }
     }
@@ -67,6 +71,7 @@ impl ButtonBuilder {
             LayoutStyle::default()
                 .row()
                 .center()
+                .gap(px(8.0))
                 .min_height(px(self.tokens.size.height))
                 .padding(self.tokens.size.padding)
         });
@@ -183,6 +188,12 @@ impl ButtonBuilder {
         self
     }
 
+    /// Attach an icon sprite displayed before the label.
+    pub fn icon(mut self, sprite: SpriteId) -> Self {
+        self.icon = Some(sprite);
+        self
+    }
+
     /// Set interaction state ([`WidgetState`]).
     pub fn state(mut self, state: WidgetState) -> Self {
         self.state = state;
@@ -255,6 +266,16 @@ impl Widget for Button {
                 .radius(button_style.border_radius),
         );
 
+        let icon_handle = b.icon.map(|sprite| {
+            let icon_sz = Size::new(b.tokens.size.icon_size, b.tokens.size.icon_size);
+            s.spawn(
+                div_handle,
+                icon(sprite)
+                    .size(icon_sz)
+                    .color(button_style.content_color),
+            )
+        });
+
         let label_handle: Handle<Text> = s.spawn(
             div_handle,
             text(b.font, b.label)
@@ -281,6 +302,7 @@ impl Widget for Button {
             state: b.state,
             div_handle: Some(div_handle),
             label_handle: Some(label_handle),
+            icon_handle,
         }
     }
 }
@@ -328,10 +350,11 @@ impl ButtonContext for Context<'_, Button> {
     }
 
     fn set_label(&mut self, text: impl Into<String>) {
+        let text = text.into();
         if let Some(h) = self.me().label_handle
             && let Some(mut c) = self.at(h)
         {
-            c.set_text(text);
+            c.update(|t| t.string = text);
         }
     }
 }
@@ -365,6 +388,11 @@ fn sync_button(ctx: &mut Context<'_, Button>) {
     if let Some(h) = ctx.me().label_handle
         && let Some(mut c) = ctx.at(h)
     {
+        c.update(|t| t.color = fg);
+    }
+    if let Some(h) = ctx.me().icon_handle
+        && let Some(mut c) = ctx.at(h)
+    {
         c.set_color(fg);
     }
 }
@@ -376,6 +404,14 @@ fn sync_theme(ctx: &mut Context<'_, Button>) {
     if let Some(h) = ctx.me().label_handle
         && let Some(mut c) = ctx.at(h)
     {
-        c.set_size(font_size);
+        c.update(|t| t.px = font_size);
+    }
+    if let Some(h) = ctx.me().icon_handle
+        && let Some(mut c) = ctx.at(h)
+    {
+        c.set_size(geometry::Size::new(
+            tokens.size.icon_size,
+            tokens.size.icon_size,
+        ));
     }
 }
