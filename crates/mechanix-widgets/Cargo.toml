@@ -7,6 +7,11 @@ edition = "2024"
 app.workspace = true
 atlas.workspace = true
 geometry.workspace = true
+interactivity.workspace = true
 layout.workspace = true
+paint.workspace = true
 theme.workspace = true
 widgets.workspace = true
+
+[dev-dependencies]
+window.workspace = true

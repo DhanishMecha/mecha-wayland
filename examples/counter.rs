@@ -31,6 +31,32 @@ impl Widget for Button {
         *s.component_mut::<Paint>(me).unwrap() =
             Paint::Quad(Quad::new(Color::rgb(0.25, 0.5, 0.9)).radius(6.0));
         s.spawn(me, text(b.font, b.label).size(18));
+
+        // Hover: lighten the button when the pointer enters.
+        s.on::<Enter>(me, |ctx, _| {
+            ctx.set_paint(Paint::Quad(
+                Quad::new(Color::rgb(0.35, 0.60, 1.0)).radius(6.0),
+            ));
+        });
+        // Reset to normal when the pointer leaves.
+        s.on::<Exit>(me, |ctx, _| {
+            ctx.set_paint(Paint::Quad(
+                Quad::new(Color::rgb(0.25, 0.50, 0.9)).radius(6.0),
+            ));
+        });
+        // Pressed: darken while the button is held down.
+        s.on::<Press>(me, |ctx, _| {
+            ctx.set_paint(Paint::Quad(
+                Quad::new(Color::rgb(0.15, 0.35, 0.70)).radius(6.0),
+            ));
+        });
+        // Release: return to the hover shade (pointer is still over the button).
+        s.on::<Release>(me, |ctx, _| {
+            ctx.set_paint(Paint::Quad(
+                Quad::new(Color::rgb(0.35, 0.60, 1.0)).radius(6.0),
+            ));
+        });
+
         Button
     }
 }
