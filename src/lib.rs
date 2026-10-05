@@ -21,9 +21,14 @@ pub mod prelude {
     pub use window::prelude::*;
 
     pub use mechanix_widgets::button::{
-        Button, ButtonBuilder, ButtonContext, ButtonContextExt, ButtonOverrides, ButtonSize,
-        ButtonStyle, ButtonVariant, OnClickHandler, ResolvedButtonStyle, SetButtonState,
-        StateLayer, WidgetState, button,
+        Button, ButtonBuilder, ButtonContext, ButtonContextExt, ButtonStateChanged, ChildFn,
+        OnClickHandler, SetButtonState, StateLayer, WidgetState, button,
+    };
+    pub use mechanix_widgets::mechanix_button::{
+        ButtonOverrides, ButtonSize, ButtonStyle, ButtonVariant, MechanixButton,
+        MechanixButtonBuilder, MechanixButtonContext, MechanixButtonContextExt,
+        MechanixButtonOverrides, MechanixButtonSize, MechanixButtonStyle, MechanixButtonVariant,
+        ResolvedButtonStyle, ResolvedMechanixButtonStyle, mechanix_button,
     };
     pub use mechanix_widgets::{FontBook, FontContextExt};
 }

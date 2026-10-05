@@ -390,9 +390,12 @@ dependencies = [
  "app",
  "atlas",
  "geometry",
+ "interactivity",
  "layout",
+ "paint",
  "theme",
  "widgets",
+ "window",
 ]
 
 [[package]]

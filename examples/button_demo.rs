@@ -87,8 +87,8 @@ impl Widget for Demo {
             div().style(LayoutStyle::default().row().center().gap(px(12.0))),
         );
 
-        let minus = s.spawn(row, button(" − ").accented().border_radius(10.));
-        let plus = s.spawn(row, button(" + ").variant(ButtonVariant::Filled));
+        let minus = s.spawn(row, button().child(text(font, " − ")).border_radius(10.0));
+        let plus = s.spawn(row, button().child(text(font, " + ")));
 
         s.on::<Clicked>(minus, move |ctx, _| {
             ctx.me().count -= 1;
@@ -106,13 +106,8 @@ impl Widget for Demo {
             }
         });
 
-        // ── Reset (Outlined) ──────────────────────────────────────────────────
-        let reset = s.spawn(
-            row,
-            button("Reset")
-                .variant(ButtonVariant::Outlined)
-                .accented(),
-        );
+        // ── Reset ─────────────────────────────────────────────────────────────
+        let reset = s.spawn(row, button().child(text(font, "Reset")));
 
         s.on::<Clicked>(reset, move |ctx, _| {
             ctx.me().count = 0;
@@ -121,49 +116,53 @@ impl Widget for Demo {
             }
         });
 
-        // ── Outlined button ───────────────────────────────────────────────────
+        // ── Outlined Mechanix button ──────────────────────────────────────────
         s.spawn(
             me,
-            button("Outlined Button")
-                .variant(ButtonVariant::Outlined)
+            mechanix_button()
+                .variant(MechanixButtonVariant::Outlined)
+                .child(text(font, "Outlined Button"))
                 .on_click(|_ctx| {}),
         );
 
-
-        // ── Disabled button ───────────────────────────────────────────────────
+        // ── Disabled Mechanix button ──────────────────────────────────────────
         s.spawn(
             me,
-            button("Disabled Button")
-                .variant(ButtonVariant::Filled)
+            mechanix_button()
+                .variant(MechanixButtonVariant::Filled)
+                .child(text(font, "Disabled Button"))
                 .disabled(true),
         );
 
-        // ── Small / Large size tokens ─────────────────────────────────────────
+        // ── Small / Large size demo ───────────────────────────────────────────
         let size_row = s.spawn(
             me,
             div().style(LayoutStyle::default().row().center().gap(px(8.0))),
         );
         s.spawn(
             size_row,
-            button("Small")
-                .variant(ButtonVariant::Filled)
-                .size(ButtonSize::SMALL)
+            button()
+                .child(text(font, "Small"))
+                .height(px(32.0))
+                .padding(Insets::symmetric(px(16.0), px(0.0)))
                 .border_radius(10.0)
                 .on_click(|_ctx| {}),
         );
         s.spawn(
             size_row,
-            button("Large")
-                .variant(ButtonVariant::Filled)
-                .size(ButtonSize::LARGE)
+            button()
+                .child(text(font, "Large"))
+                .height(px(72.0))
+                .padding(Insets::symmetric(px(48.0), px(0.0)))
                 .on_click(|_ctx| {}),
         );
 
-        // ── Theme toggle (Outlined) ───────────────────────────────────────────
+        // ── Theme toggle ──────────────────────────────────────────────────────
         s.spawn(
             me,
-            button("Toggle Theme")
-                .variant(ButtonVariant::Outlined)
+            button()
+                .child(text(font, "Toggle Theme"))
+                .border(1.0, Color::rgb(0.5, 0.5, 0.5))
                 .on_click(|ctx| {
                     let next = match ctx.theme().mode() {
                         ThemeMode::Dark => MechanixTheme::light(),
