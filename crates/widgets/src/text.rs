@@ -85,6 +85,51 @@ impl Widget for Text {
     }
 }
 
+/// The byte offset of the glyph boundary closest to `x` pixels into
+/// `text`: where a click at `x` lands the cursor. `0` for an empty
+/// string or `x` at or before the first glyph's midpoint; `text.len()`
+/// for `x` past the end. Advances match `shape`'s (no kerning), so the
+/// boundary lines up with a drawn glyph's edge.
+pub fn hit_position(atlas: &mut Atlas, font: FontId, px: u16, text: &str, x: f32) -> usize {
+    let mut pen = 0.0f32;
+    let mut best = 0usize;
+    let mut best_d = x.abs(); // distance from the boundary at pen = 0
+    for (i, ch) in text.char_indices() {
+        let Some((f, id)) = atlas.lookup(&[font], ch) else {
+            continue;
+        };
+        pen += atlas.glyph(f, id, px).advance;
+        let off = i + ch.len_utf8();
+        let d = (pen - x).abs();
+        if d < best_d {
+            best_d = d;
+            best = off;
+        }
+    }
+    best
+}
+
+/// The pen advance of `text` in `font` at `px`: how far the pen moves
+/// left to right, which is the width a `Text` of it reports. A character
+/// missing from the font's cmap contributes no width, and one present
+/// but with no ink (such as a space) still advances the pen. Sums the
+/// same advances `shape` does, without building sprites.
+pub fn measure(atlas: &mut Atlas, font: FontId, px: u16, text: &str) -> f32 {
+    let mut pen = 0.0f32;
+    let mut last: Option<u16> = None;
+    for ch in text.chars() {
+        let Some((f, id)) = atlas.lookup(&[font], ch) else {
+            continue;
+        };
+        if let Some(left) = last {
+            pen += atlas.kern(font, left, id, px);
+        }
+        pen += atlas.glyph(f, id, px).advance;
+        last = Some(id);
+    }
+    pen
+}
+
 /// One line of `text` in `font` at `px`, tinted `color`: a sprite per
 /// glyph with ink, pen-advanced left to right, baselined by the font's
 /// ascent, and the line's natural size (`pen` wide, `ascent - descent +

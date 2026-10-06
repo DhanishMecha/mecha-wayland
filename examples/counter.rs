@@ -3,7 +3,7 @@
 
 use mecha_wayland::prelude::*;
 
-/// A clickable box with a text label. It does nothing on its own —
+/// A clickable box with a text label. It does nothing on its own ?
 /// [`Counter`] wires the `Clicked` event on the handle `button` returns.
 struct Button;
 
