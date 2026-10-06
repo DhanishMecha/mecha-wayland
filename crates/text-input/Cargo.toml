@@ -1,21 +1,18 @@
 [package]
-name = "presentation"
+name = "text-input"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 app.workspace = true
-atlas.workspace = true
-geometry.workspace = true
-gles.workspace = true
 interactivity.workspace = true
-layout.workspace = true
-render.workspace = true
 wayland.workspace = true
-window.workspace = true
-xkbcommon.workspace = true
+widgets.workspace = true
 
 [dev-dependencies]
+atlas.workspace = true
+layout.workspace = true
 paint.workspace = true
 ring.workspace = true
 wayland = { workspace = true, features = ["fake"] }
+window.workspace = true

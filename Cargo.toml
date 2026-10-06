@@ -20,6 +20,7 @@ wayland.workspace = true
 widgets.workspace = true
 window.workspace = true
 theme.workspace = true
+text-input.workspace = true
 
 [workspace]
 members = [
@@ -36,7 +37,7 @@ members = [
     "crates/wayland",
     "crates/widgets",
     "crates/window",
-    "crates/theme",
+    "crates/theme", "crates/text-input",
 ]
 resolver = "3"
 
@@ -55,6 +56,7 @@ wayland = { path = "crates/wayland" }
 widgets = { path = "crates/widgets" }
 window = { path = "crates/window" }
 theme = { path = "crates/theme" }
+text-input = { path = "crates/text-input" }
 bitflags = "2"
 fontdue = "0.9"
 gbm = { version = "0.18", default-features = false }
@@ -70,6 +72,7 @@ taffy = { version = "0.10.1", default-features = false, features = [
     "flexbox",
     "block_layout",
 ] }
+xkbcommon = "0.9"
 
 [profile.dev]
 debug = 1
