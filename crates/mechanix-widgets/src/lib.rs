@@ -3,12 +3,14 @@
 //! Provides theme-aware widgets built on top of `widgets` and `theme`.
 
 pub mod button;
+pub mod clock;
 pub mod color;
 pub mod font;
 pub mod state;
 pub mod text;
 
 pub use button::{Button, ButtonBuilder, ButtonContextExt, ButtonOverrides, ButtonVariant, button};
+pub use clock::{Clock, ClockBuilder, ClockContextExt, ClockInterval, ClockTick, clock};
 pub use color::{ColorSource, IntoColorSource};
 pub use font::{FontBook, FontContextExt, IntoWeight};
 pub use state::StateLayer;
@@ -30,6 +32,7 @@ pub mod prelude {
     pub use crate::button::{
         Button, ButtonBuilder, ButtonContextExt, ButtonOverrides, ButtonVariant, button,
     };
+    pub use crate::clock::{Clock, ClockBuilder, ClockContextExt, ClockInterval, ClockTick, clock};
     pub use crate::text::{Text, TextBuilder, TextContextExt, text};
 
     // Color, typography & font resolution
