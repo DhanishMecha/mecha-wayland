@@ -205,6 +205,58 @@ fn div_context_set_radii_writes_per_corner_values_and_fires_on_change() {
     assert_eq!(take_painted(), vec![vec![panel.id()]]);
 }
 
+#[test]
+fn div_builder_child_spawns_children_in_order() {
+    let mut app = app();
+    let root = root(&mut app, 100.0, 100.0);
+    let panel: Handle<Div> = app.spawn(
+        root,
+        div()
+            .child(div().background(Color::BLACK))
+            .child(div().background(Color::WHITE)),
+    );
+    app.tick();
+    let children = app.children(panel).expect("panel is live");
+    assert_eq!(children.len(), 2);
+    assert_eq!(
+        app.component::<Paint>(children[0]),
+        Some(&Paint::Quad(Quad::new(Color::BLACK)))
+    );
+    assert_eq!(
+        app.component::<Paint>(children[1]),
+        Some(&Paint::Quad(Quad::new(Color::WHITE)))
+    );
+}
+
+#[test]
+fn div_builder_children_spawns_iterable_of_children() {
+    let mut app = app();
+    let root = root(&mut app, 100.0, 100.0);
+    let panel: Handle<Div> = app.spawn(
+        root,
+        div().children([
+            div().background(Color::rgb(1.0, 0.0, 0.0)),
+            div().background(Color::rgb(0.0, 1.0, 0.0)),
+            div().background(Color::rgb(0.0, 0.0, 1.0)),
+        ]),
+    );
+    app.tick();
+    let children = app.children(panel).expect("panel is live");
+    assert_eq!(children.len(), 3);
+    assert_eq!(
+        app.component::<Paint>(children[0]),
+        Some(&Paint::Quad(Quad::new(Color::rgb(1.0, 0.0, 0.0))))
+    );
+    assert_eq!(
+        app.component::<Paint>(children[1]),
+        Some(&Paint::Quad(Quad::new(Color::rgb(0.0, 1.0, 0.0))))
+    );
+    assert_eq!(
+        app.component::<Paint>(children[2]),
+        Some(&Paint::Quad(Quad::new(Color::rgb(0.0, 0.0, 1.0))))
+    );
+}
+
 // ── Text ────────────────────────────────────────────────────────────────
 
 const INTER: &[u8] = include_bytes!("../../atlas/tests/fixtures/Inter-Regular.ttf");

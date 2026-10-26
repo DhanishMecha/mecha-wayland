@@ -1,6 +1,6 @@
-//! `Div`: a box with a look — the one container of the four primitive
-//! widgets. `build` never spawns children; a caller attaches them to the
-//! handle it gets back.
+//! `Div`: a box with a look — the one container of the primitive
+//! widgets. Children can be declared on the builder via `.child(...)` or
+//! `.children(...)`, or attached by a caller to the handle it gets back.
 
 use app::{Build, Context, Handle, Spawner, Widget};
 use geometry::{Color, Corners, Insets};
@@ -9,6 +9,8 @@ use paint::{Paint, PaintContext, Quad};
 
 pub struct Div;
 
+type ChildSpawner = Box<dyn FnOnce(&mut Spawner<'_, Div>, Handle<Div>)>;
+
 /// A `Div`'s look (`DivContext::set_radius`/`set_radii`/`set_border`) is
 /// read back from its current `Paint`, not cached separately — see
 /// `DivContext`'s doc comment for the tradeoff that implies.
@@ -16,12 +18,14 @@ pub fn div() -> DivBuilder {
     DivBuilder {
         style: LayoutStyle::default(),
         quad: Quad::default(),
+        children: Vec::new(),
     }
 }
 
 pub struct DivBuilder {
     style: LayoutStyle,
     quad: Quad,
+    children: Vec<ChildSpawner>,
 }
 
 impl DivBuilder {
@@ -49,6 +53,48 @@ impl DivBuilder {
         self.quad.border_color = color;
         self
     }
+    /// Attach a single child widget to be spawned under this div when built.
+    ///
+    /// # Example
+    /// ```
+    /// use widgets::prelude::*;
+    /// use geometry::Color;
+    ///
+    /// let panel = div()
+    ///     .background(Color::BLACK)
+    ///     .child(div().background(Color::WHITE));
+    /// ```
+    pub fn child<B: Build + 'static>(mut self, child: B) -> Self {
+        self.children.push(Box::new(move |s, me| {
+            s.spawn(me, child);
+        }));
+        self
+    }
+
+    /// Attach multiple children of the same builder type to be spawned under
+    /// this div when built.
+    ///
+    /// # Example
+    /// ```
+    /// use widgets::prelude::*;
+    /// use geometry::Color;
+    ///
+    /// let row = div().children([
+    ///     div().background(Color::rgb(1.0, 0.0, 0.0)),
+    ///     div().background(Color::rgb(0.0, 1.0, 0.0)),
+    ///     div().background(Color::rgb(0.0, 0.0, 1.0)),
+    /// ]);
+    /// ```
+    pub fn children<I, B>(mut self, children: I) -> Self
+    where
+        I: IntoIterator<Item = B>,
+        B: Build + 'static,
+    {
+        for child in children {
+            self = self.child(child);
+        }
+        self
+    }
 }
 
 impl Build for DivBuilder {
@@ -60,6 +106,9 @@ impl Widget for Div {
     fn build(b: DivBuilder, me: Handle<Div>, s: &mut Spawner<'_, Div>) -> Div {
         *s.component_mut::<LayoutStyle>(me).unwrap() = b.style;
         *s.component_mut::<Paint>(me).unwrap() = quad_paint(b.quad);
+        for child in b.children {
+            child(s, me);
+        }
         Div
     }
 }
