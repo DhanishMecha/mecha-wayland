@@ -13,7 +13,7 @@ use ring::{Completed, IoEvent, Ring, Token};
 
 use crate::bus::BusId;
 use crate::client::{CallError, CallId, MethodCall, PROPERTIES};
-use crate::matching::{Entry, MatchId, MatchRule, Matches, Owner};
+use crate::matching::{Entry, MatchId, MatchRule, Matches, Owner, SignalMap, Watch};
 use crate::message::{Flags, Message, MessageKind};
 use crate::names::{BusName, ErrorName, InterfaceName, MemberName, ObjectPath};
 use crate::server::{
@@ -21,8 +21,8 @@ use crate::server::{
     PropertyError, STANDARD, Server, errors,
 };
 use crate::signals::{
-    BusDisconnected, MatchFailed, MethodCallReceived, MethodReply, NameAcquired, NameLost, Out,
-    PropertySetRequested, SignalReceived, out,
+    BusDisconnected, MatchFailed, MethodCallReceived, MethodReply, NameAcquired, NameLost,
+    NameOwnerChanged, Out, PropertySetRequested, SignalReceived, out,
 };
 use crate::standard;
 use crate::types::Body;
@@ -49,7 +49,12 @@ pub(crate) enum Internal {
     AddMatch(String),
     /// `AddMatch` for an owner-following rule; failures are ignored.
     OwnerMatch,
-    GetNameOwner(BusName),
+    /// `initial`: a `watch_name` asked, so the answer is raised as the
+    /// name's first `NameOwnerChanged`.
+    GetNameOwner {
+        name: BusName,
+        initial: bool,
+    },
 }
 
 pub(crate) struct Connection {
@@ -719,7 +724,15 @@ impl Connection {
             }
             MessageKind::Signal => {
                 let mut outs = self.daemon_signal(&msg);
-                let matches = self.matches.matching(&msg, self.id);
+                let mut matches = self.matches.matching(&msg, self.id);
+                // A mapped rule raises its own signal and leaves the list.
+                matches.retain(|id| match self.matches.mapped.get(&id.n) {
+                    Some(map) => {
+                        outs.extend(map(&msg));
+                        false
+                    }
+                    None => true,
+                });
                 if !matches.is_empty() {
                     outs.push(out(SignalReceived {
                         bus: self.id,
@@ -774,12 +787,23 @@ impl Connection {
                     .unwrap_or_default()
             }
             Internal::OwnerMatch => Vec::new(),
-            Internal::GetNameOwner(name) => {
+            Internal::GetNameOwner { name, initial } => {
                 let unique = msg.body::<(BusName,)>().ok().map(|(u,)| u);
                 if let Some(owner) = self.matches.owners.get_mut(&name) {
-                    owner.unique = unique;
+                    owner.unique = unique.clone();
                 }
-                Vec::new()
+                let watch = self.matches.watched.get_mut(&name);
+                let Some(watch) = watch.filter(|_| initial) else {
+                    return Vec::new();
+                };
+                // Changes the daemon sent before this answer are in it.
+                watch.ready = true;
+                vec![out(NameOwnerChanged {
+                    bus: self.id,
+                    name,
+                    old: None,
+                    new: unique,
+                })]
             }
         }
     }
@@ -826,16 +850,25 @@ impl Connection {
                 Internal::AddMatch(key.clone()),
             );
             if let Some(s) = sender.filter(|s| !s.is_unique() && s.as_str() != DAEMON) {
-                self.track_owner(s);
+                self.track_owner(s, false);
             }
         }
         MatchId { bus: self.id, n }
+    }
+
+    /// Raise what `map` makes of each signal matching `id`, in place of
+    /// listing `id` in `SignalReceived`. An unknown id keeps nothing.
+    pub(crate) fn map_signals(&mut self, id: MatchId, map: SignalMap) {
+        if self.matches.ids.contains_key(&id.n) {
+            self.matches.mapped.insert(id.n, map);
+        }
     }
 
     pub(crate) fn remove_match(&mut self, id: MatchId) {
         let Some(key) = self.matches.ids.remove(&id.n) else {
             return;
         };
+        self.matches.mapped.remove(&id.n);
         let entry = self
             .matches
             .rules
@@ -858,8 +891,9 @@ impl Connection {
 
     /// Follow `name`'s owner: a `NameOwnerChanged` rule first, then
     /// `GetNameOwner`, so the daemon answers both before anything sent
-    /// after them and no later signal can beat the owner.
-    fn track_owner(&mut self, name: BusName) {
+    /// after them and no later signal can beat the owner. `initial`
+    /// looks the owner up even when already followed, for `watch_name`.
+    fn track_owner(&mut self, name: BusName, initial: bool) {
         let owner = self.matches.owners.entry(name.clone()).or_insert(Owner {
             refs: 0,
             unique: None,
@@ -869,11 +903,44 @@ impl Connection {
         if first {
             let rule = owner_rule(&name);
             self.daemon_call("AddMatch", &(rule.as_str(),), Internal::OwnerMatch);
-            self.daemon_call(
-                "GetNameOwner",
-                &(name.as_str(),),
-                Internal::GetNameOwner(name.clone()),
-            );
+        }
+        if first || initial {
+            self.lookup_owner(name, initial);
+        }
+    }
+
+    fn lookup_owner(&mut self, name: BusName, initial: bool) {
+        let body = (name.as_str().to_owned(),);
+        self.daemon_call(
+            "GetNameOwner",
+            &body,
+            Internal::GetNameOwner { name, initial },
+        );
+    }
+
+    /// Raise `NameOwnerChanged` for `name`: its owner now, then every
+    /// change. Watches count; each raises its own first answer.
+    pub(crate) fn watch_name(&mut self, name: BusName) {
+        let watch = self.matches.watched.entry(name.clone()).or_insert(Watch {
+            refs: 0,
+            ready: false,
+        });
+        watch.refs += 1;
+        if watch.refs == 1 {
+            self.track_owner(name, true);
+        } else {
+            self.lookup_owner(name, true);
+        }
+    }
+
+    pub(crate) fn unwatch_name(&mut self, name: BusName) {
+        let Some(watch) = self.matches.watched.get_mut(&name) else {
+            return;
+        };
+        watch.refs -= 1;
+        if watch.refs == 0 {
+            self.matches.watched.remove(&name);
+            self.untrack_owner(name);
         }
     }
 
@@ -900,15 +967,26 @@ impl Connection {
         let bus = self.id;
         match msg.member().map(MemberName::as_str) {
             Some("NameOwnerChanged") => {
-                if let Ok((name, _, new)) = msg.body::<(String, String, String)>() {
-                    let followed = BusName::new(&name)
-                        .ok()
-                        .and_then(|n| self.matches.owners.get_mut(&n));
-                    if let Some(owner) = followed {
-                        owner.unique = BusName::new(&new).ok();
-                    }
+                let Ok((name, old, new)) = msg.body::<(String, String, String)>() else {
+                    return Vec::new();
+                };
+                let Ok(name) = BusName::new(&name) else {
+                    return Vec::new();
+                };
+                let new = BusName::new(&new).ok();
+                if let Some(owner) = self.matches.owners.get_mut(&name) {
+                    owner.unique = new.clone();
                 }
-                Vec::new()
+                // Before the first answer, that answer already has this.
+                if !self.matches.watched.get(&name).is_some_and(|w| w.ready) {
+                    return Vec::new();
+                }
+                vec![out(NameOwnerChanged {
+                    bus,
+                    name,
+                    old: BusName::new(&old).ok(),
+                    new,
+                })]
             }
             Some("NameAcquired") => msg
                 .body::<(BusName,)>()

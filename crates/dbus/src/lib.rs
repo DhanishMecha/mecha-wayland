@@ -22,14 +22,19 @@
 //!   [`MethodReply`] for a [`CallId`], [`SignalReceived`] for the
 //!   [`MatchId`]s a signal satisfies, [`MethodCallReceived`] and
 //!   [`PropertySetRequested`] for exported objects, [`NameAcquired`],
-//!   [`NameLost`], [`MatchFailed`] and [`BusDisconnected`].
+//!   [`NameLost`], [`NameOwnerChanged`], [`MatchFailed`] and
+//!   [`BusDisconnected`].
 //! - Calling: [`Bus::object`] gives an [`ObjectRef`] with `call`,
 //!   `get_property`, `get_all`, `set_property`; [`MethodCall`] has every
 //!   option (timeouts, interactive authorization). A call's timeout
 //!   (25 s by default) fails it with [`CallError::Timeout`].
 //! - Watching: [`Bus::add_match`] with a [`MatchRule`];
 //!   [`Bus::watch_properties`] for `PropertiesChanged`. A rule naming a
-//!   well-known sender follows that name's owner.
+//!   well-known sender follows that name's owner. [`Bus::watch_name`]
+//!   raises [`NameOwnerChanged`] for a service starting and stopping.
+//!   [`Bus::add_match_as`] (or [`Bus::map_signals`] on an existing id)
+//!   turns a rule's signals into the caller's own signal instead of
+//!   `SignalReceived`, so a service module keeps no `MatchId` to filter by.
 //! - Serving: [`Bus::export`] an [`InterfaceSpec`]; answer each
 //!   [`IncomingCall`] with [`DBus::reply`] now or later. A call dropped
 //!   unanswered gets `NoReply`. Introspectable, Peer and Properties are
@@ -125,7 +130,7 @@ pub use names::{BusName, ErrorName, InterfaceName, MemberName, NameError, Object
 pub use server::{Access, ExportError, ExportId, IncomingCall, InterfaceSpec, PropertyError};
 pub use signals::{
     BusDisconnected, MatchFailed, MethodCallReceived, MethodReply, NameAcquired, NameLost,
-    PropertySetRequested, SignalReceived,
+    NameOwnerChanged, PropertySetRequested, SignalReceived,
 };
 pub use signature::Signature;
 pub use types::{Basic, Body, Decode, Encode, FromBody, Type, from_bytes, to_bytes};
@@ -137,8 +142,8 @@ pub mod prelude {
         Access, Bus, BusDisconnected, BusId, BusName, CallError, CallId, DBus, DBusModule,
         ErrorName, ExportError, ExportId, IncomingCall, InterfaceName, InterfaceSpec, MatchFailed,
         MatchId, MatchRule, MemberName, Message, MessageKind, MethodCall, MethodCallReceived,
-        MethodReply, NameAcquired, NameFlags, NameLost, ObjectPath, ObjectRef, PropMap, PropMapExt,
-        PropertiesChanged, PropertyError, PropertySetRequested, SignalReceived, Signature, UnixFd,
-        Value,
+        MethodReply, NameAcquired, NameFlags, NameLost, NameOwnerChanged, ObjectPath, ObjectRef,
+        PropMap, PropMapExt, PropertiesChanged, PropertyError, PropertySetRequested,
+        SignalReceived, Signature, UnixFd, Value,
     };
 }

@@ -15,7 +15,7 @@ use crate::matching::{MatchId, MatchRule};
 use crate::message::Message;
 use crate::names::{BusName, ErrorName, InterfaceName, MemberName, ObjectPath};
 use crate::server::{ExportError, ExportId, IncomingCall, InterfaceSpec, PropertyError};
-use crate::signals::{Out, emit};
+use crate::signals::{Out, emit, out};
 use crate::types::Body;
 use crate::value::Value;
 
@@ -229,6 +229,33 @@ impl<'a> Bus<'a> {
         self.conn.add_match(rule)
     }
 
+    /// [`add_match`](Self::add_match), then [`map_signals`](Self::map_signals).
+    pub fn add_match_as<S: Signal>(
+        &mut self,
+        rule: MatchRule,
+        f: impl Fn(&Message) -> Option<S> + 'static,
+    ) -> MatchId {
+        let id = self.add_match(rule);
+        self.map_signals(id, f);
+        id
+    }
+
+    /// Raise `f(msg)` for each signal matching `id`, when it returns
+    /// `Some`, instead of listing `id` in `SignalReceived`; return `None`
+    /// to drop a signal (one that does not decode, say). A signal that
+    /// also matches unmapped rules still raises `SignalReceived` for
+    /// those, after the mapped ones. Mapping again replaces the map.
+    /// Does nothing for an id removed or on another bus.
+    pub fn map_signals<S: Signal>(
+        &mut self,
+        id: MatchId,
+        f: impl Fn(&Message) -> Option<S> + 'static,
+    ) {
+        if id.bus == self.conn.id {
+            self.conn.map_signals(id, Box::new(move |m| f(m).map(out)));
+        }
+    }
+
     pub fn remove_match(&mut self, id: MatchId) {
         if id.bus == self.conn.id {
             self.conn.remove_match(id);
@@ -243,6 +270,20 @@ impl<'a> Bus<'a> {
         interface: impl Into<InterfaceName>,
     ) -> MatchId {
         self.add_match(MatchRule::properties_changed(destination, path, interface))
+    }
+
+    /// Follow who owns `name`: a [`NameOwnerChanged`] with its owner now
+    /// (`old: None`, `new: None` when nobody owns it), then one per
+    /// change, until as many [`unwatch_name`](Self::unwatch_name)s. Each
+    /// call raises its own first answer.
+    ///
+    /// [`NameOwnerChanged`]: crate::NameOwnerChanged
+    pub fn watch_name(&mut self, name: impl Into<BusName>) {
+        self.conn.watch_name(name.into());
+    }
+
+    pub fn unwatch_name(&mut self, name: impl Into<BusName>) {
+        self.conn.unwatch_name(name.into());
     }
 
     fn daemon<B: Body>(&mut self, member: &'static str, body: &B) -> CallId {

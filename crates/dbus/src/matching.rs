@@ -9,6 +9,7 @@ use smallvec::SmallVec;
 use crate::bus::BusId;
 use crate::message::{Message, MessageKind};
 use crate::names::{BusName, InterfaceName, MemberName, ObjectPath};
+use crate::signals::Out;
 use crate::value::PropMap;
 use crate::wire::DecodeError;
 
@@ -228,14 +229,27 @@ pub(crate) struct Owner {
     pub(crate) unique: Option<BusName>,
 }
 
-/// Every rule on one connection, keyed by its rule string, and the
-/// owners of the well-known names those rules name.
+/// A name whose owner changes are raised as `NameOwnerChanged`.
+pub(crate) struct Watch {
+    pub(crate) refs: usize,
+    /// The first `GetNameOwner` answer is in; changes are raised from here.
+    pub(crate) ready: bool,
+}
+
+/// Turns a signal matching one rule into what to raise, if anything.
+pub(crate) type SignalMap = Box<dyn Fn(&Message) -> Option<Out>>;
+
+/// Every rule on one connection, keyed by its rule string, the owners of
+/// the well-known names those rules name, and the names watched.
 #[derive(Default)]
 pub(crate) struct Matches {
     pub(crate) next: u64,
     pub(crate) ids: HashMap<u64, String>,
     pub(crate) rules: HashMap<String, Entry>,
+    /// Ids whose signals are mapped instead of listed in `SignalReceived`.
+    pub(crate) mapped: HashMap<u64, SignalMap>,
     pub(crate) owners: HashMap<BusName, Owner>,
+    pub(crate) watched: HashMap<BusName, Watch>,
 }
 
 impl Matches {

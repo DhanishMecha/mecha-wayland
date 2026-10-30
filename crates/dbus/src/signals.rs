@@ -61,6 +61,18 @@ pub struct NameLost {
 }
 impl Signal for NameLost {}
 
+/// A name watched with `Bus::watch_name` changed owner. The first one
+/// after each `watch_name` has `old: None` and `new` the owner then;
+/// `new: None` means nobody owns the name (the service is not running).
+#[derive(Debug, Clone)]
+pub struct NameOwnerChanged {
+    pub bus: BusId,
+    pub name: BusName,
+    pub old: Option<BusName>,
+    pub new: Option<BusName>,
+}
+impl Signal for NameOwnerChanged {}
+
 /// The daemon refused the rule behind `id`. The local filter stays, so
 /// signals the daemon sends anyway still match.
 #[derive(Debug, Clone)]
