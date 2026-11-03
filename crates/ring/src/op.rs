@@ -1,6 +1,6 @@
 //! One in-flight operation: the buffers, the `iovec`, the `msghdr` and
 //! the control buffer, boxed so the pointers the kernel holds stay put.
-//! The only unsafe in the workspace lives here.
+//! Most of the unsafe in the workspace lives here; `timerfd.rs` has the rest.
 #![allow(unsafe_code)]
 
 use std::io;

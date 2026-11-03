@@ -24,6 +24,12 @@
 //!   and never fires twice to catch up.
 //! - A timer lives as long as its node: removing the node drops it, and
 //!   an id kept past that is a quiet no-op returning `false`.
+//! - Timers count on the monotonic clock, so setting the wall clock does
+//!   not move them. Apps that show wall-clock time install
+//!   [`WallClockModule`]: it emits [`WallClockSet`] at every node, from a
+//!   `TFD_TIMER_CANCEL_ON_SET` timerfd polled on the ring, for widgets
+//!   that align to wall-clock time to re-arm. Without it the event never
+//!   fires and no fd is opened.
 //! - [`TimerModule`] installs after `RingModule`. Ops are submitted on
 //!   `BeforeWait`, so a timer started in a tick is armed before the
 //!   runner blocks.
@@ -68,15 +74,20 @@
 use app::prelude::*;
 use ring::prelude::*;
 
+mod clock_set;
 mod ext;
 mod systems;
 mod timers;
 
+pub use clock_set::{WallClockModule, WallClockSet};
 pub use ext::{ContextTimers, SpawnerTimers};
 pub use timers::Timers;
 
 pub mod prelude {
-    pub use crate::{ContextTimers, SpawnerTimers, Timeout, TimerId, TimerModule, Timers};
+    pub use crate::{
+        ContextTimers, SpawnerTimers, Timeout, TimerId, TimerModule, Timers, WallClockModule,
+        WallClockSet,
+    };
 }
 
 /// The name of one timer. Never reused within a run.

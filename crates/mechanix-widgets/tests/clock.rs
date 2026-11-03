@@ -204,3 +204,24 @@ fn test_timer_drives_clock_updates() {
     app.tick();
     assert_eq!(rendered(&app), expected);
 }
+
+#[test]
+fn test_wall_clock_set_rerenders_immediately() {
+    let (mut app, _) = setup_test_app();
+    let clock_h = app.spawn(app.root(), clock("%H:%M").interval(ClockInterval::Minute));
+    app.tick();
+
+    // Swap the format behind the clock's back: no timer fires within the
+    // test, so only the clock-set handler can re-render it.
+    app.widget_mut::<Clock>(clock_h).unwrap().format = "%Y-set".into();
+    app.emit(timer::WallClockSet, clock_h);
+    app.flush();
+    app.tick();
+
+    let text_h = app.widget::<Clock>(clock_h).unwrap().text();
+    let native_h = app.widget::<Text>(text_h).unwrap().native();
+    assert_eq!(
+        app.widget::<widgets::Text>(native_h).unwrap().string,
+        Local::now().format("%Y-set").to_string()
+    );
+}

@@ -162,6 +162,7 @@ fn main() {
 
     app.add_module(RingModule::default())
         .add_module(TimerModule)
+        .add_module(WallClockModule)
         .add_module(
             WaylandModule::new()
                 .bind::<WlCompositor>()

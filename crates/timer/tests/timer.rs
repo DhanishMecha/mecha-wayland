@@ -233,6 +233,25 @@ fn module_needs_ring() {
 }
 
 #[test]
+#[should_panic(expected = "WallClockModule installs after RingModule")]
+fn wall_clock_module_needs_ring() {
+    App::new().add_module(WallClockModule);
+}
+
+#[test]
+fn wall_clock_module_is_opt_in_and_idempotent() {
+    // Timers alone run with no clock watch in flight.
+    let mut app = app();
+    probe(&mut app, Setup::Timeout(Duration::from_millis(10)));
+    run_for(&mut app, Duration::from_millis(50));
+    assert_eq!(fires(&app).len(), 1);
+
+    // Installing twice keeps one watch; a tick still runs cleanly.
+    app.add_module(WallClockModule).add_module(WallClockModule);
+    app.tick();
+}
+
+#[test]
 fn interval_repeats() {
     let mut app = app();
     probe(&mut app, Setup::Interval(Duration::from_millis(20)));

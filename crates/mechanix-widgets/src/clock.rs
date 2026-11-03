@@ -7,7 +7,7 @@ use crate::text::{Text, TextBuilder, TextContextExt, text};
 use app::{Build, Context, Handle, Spawner, Widget};
 use layout::LayoutStyle;
 use theme::{FontWeight, TextVariant};
-use timer::{ContextTimers, SpawnerTimers, TimerId};
+use timer::{ContextTimers, SpawnerTimers, TimerId, WallClockSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct ClockTick;
@@ -57,7 +57,8 @@ fn until_midnight(now: DateTime<Local>) -> Duration {
 }
 
 /// A live clock. Ticks through the `timer` crate, so the app needs
-/// `RingModule` and `TimerModule` installed.
+/// `RingModule` and `TimerModule` installed. Add `WallClockModule` too so
+/// the clock updates at once when the system time is set.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Clock {
     pub format: String,
@@ -171,6 +172,14 @@ impl Widget for Clock {
             ctx.update_time();
             let next = ctx.me().interval.until_next();
             ctx.start_timer_for(e.id, next);
+        });
+
+        // Timers count on the monotonic clock; when the wall clock is set,
+        // re-render and realign to the new boundary right away.
+        s.on::<WallClockSet>(me, |ctx, _| {
+            ctx.update_time();
+            let (timer, next) = (ctx.me().timer, ctx.me().interval.until_next());
+            ctx.start_timer_for(timer, next);
         });
 
         Clock {

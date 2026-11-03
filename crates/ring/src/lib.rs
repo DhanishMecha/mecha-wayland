@@ -19,7 +19,8 @@
 //!   nothing.
 //!
 //! This is the one crate in the workspace that allows unsafe code, in
-//! `op.rs` alone: the `msghdr`s the kernel reads and the submission push.
+//! `op.rs` (the `msghdr`s the kernel reads and the submission push) and
+//! `timerfd.rs` (the [`ClockSetFd`] syscalls) alone.
 //!
 //! # Quick start
 //!
@@ -53,11 +54,13 @@ use app::prelude::*;
 use io_uring::IoUring;
 
 mod op;
+mod timerfd;
 
 use op::Op;
+pub use timerfd::ClockSetFd;
 
 pub mod prelude {
-    pub use crate::{BeforeWait, Completed, IoEvent, Ring, RingModule, Stop, Token};
+    pub use crate::{BeforeWait, ClockSetFd, Completed, IoEvent, Ring, RingModule, Stop, Token};
 }
 
 /// The name of one submitted op. Never reused within a run.
